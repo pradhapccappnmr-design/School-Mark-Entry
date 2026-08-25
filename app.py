@@ -472,30 +472,19 @@ def get_subjects_for_class(class_value):
 
     try:
 
-        rows = (
-            db.query(Subject)
-            .join(
-                ClassSubject,
-                ClassSubject.subject_id == Subject.id
-            )
-            .filter(
-                ClassSubject.class_id == class_id,
-                Subject.active == True
-            )
-            .order_by(
-                Subject.name
-            )
-            .all()
-        )
+        subjects = db.query(Subject).filter(
+            Subject.active == True
+        ).order_by(
+            Subject.name
+        ).all()
 
         return [
-            f"{x.id} | {x.name}"
-            for x in rows
+            f"{subject.id} | {subject.name}"
+            for subject in subjects
         ]
 
     finally:
         db.close()
-
 
 # ==========================================================
 # STUDENT MANAGEMENT

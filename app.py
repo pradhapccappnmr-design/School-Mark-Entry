@@ -779,68 +779,107 @@ def save_marks(
     exam_id = parse_id(exam_value)
     subject_id = parse_id(subject_value)
 
-    if not all([
-        class_id,
-        year_id,
-        exam_id,
-        subject_id
-    ]):
+    if not class_id:
+        return "❌ Please select Class."
 
-        return "❌ Select all options first."
+    if not year_id:
+        return "❌ Please select Academic Year."
+
+    if not exam_id:
+        return "❌ Please select Exam."
+
+    if not subject_id:
+        return "❌ Please select Subject."
+
+    if table_data is None:
+        return "❌ No student data found. Please click Load Students."
 
     db = SessionLocal()
 
     try:
 
-        subject = db.get(
-            Subject,
-            subject_id
-        )
-        if table_data is None:
-            table_data = []
+        subject = db.query(
+            Subject
+        ).filter(
+            Subject.id == subject_id
+        ).first()
 
-        for row in table_data:
+        if subject is None:
+            return "❌ Subject not found."
 
-            if not row:
+        # Gradio Dataframe may return a Pandas DataFrame.
+        # Convert it to normal rows.
+        if hasattr(table_data, "values"):
+            rows = table_data.values.tolist()
+        else:
+            rows = table_data
+
+        if not rows:
+            return "❌ No student rows found."
+
+        saved_count = 0
+
+        for row in rows:
+
+            if row is None:
                 continue
 
-            student_id = int(
-                row[0]
-            )
+            # Make sure the row has enough columns.
+            if len(row) < 4:
+                continue
+
+            try:
+                student_id = int(row[0])
+            except Exception:
+                continue
 
             position = 3
 
-            theory = int(
-                row[position] or 0
-            )
+            # Theory
+            theory = 0
+
+            if len(row) > position:
+                if row[position] not in [None, ""]:
+                    theory = int(float(row[position]))
 
             position += 1
 
+            # Practical
             practical = 0
-            internal = 0
 
             if subject.practical:
 
-                practical = int(
-                    row[position] or 0
-                )
+                if len(row) > position:
+
+                    if row[position] not in [None, ""]:
+                        practical = int(
+                            float(row[position])
+                        )
 
                 position += 1
+
+            # Internal
+            internal = 0
 
             if subject.internal:
 
-                internal = int(
-                    row[position] or 0
-                )
+                if len(row) > position:
+
+                    if row[position] not in [None, ""]:
+                        internal = int(
+                            float(row[position])
+                        )
 
                 position += 1
 
+            # Automatic Total
             total = (
                 theory +
                 practical +
                 internal
             )
 
+            # Find existing mark
             mark = db.query(
                 Mark
             ).filter_by(
@@ -850,7 +889,8 @@ def save_marks(
                 subject_id=subject_id
             ).first()
 
-            if not mark:
+            # Create new mark if not exists
+            if mark is None:
 
                 mark = Mark(
                     academic_year_id=year_id,
@@ -861,26 +901,38 @@ def save_marks(
 
                 db.add(mark)
 
+            # Save marks
             mark.theory = theory
             mark.practical = practical
             mark.internal = internal
             mark.total = total
             mark.updated_at = datetime.utcnow()
 
+            saved_count += 1
+
+        if saved_count == 0:
+
+            return (
+                "❌ No valid student rows found. "
+                "Please click Load Students again."
+            )
+
         db.commit()
 
-        return "✅ Marks saved successfully."
+        return (
+            f"✅ Marks saved successfully for "
+            f"{saved_count} student(s)."
+        )
 
     except Exception as e:
 
         db.rollback()
 
-        return "❌ Error: " + str(e)
+        return "❌ Error while saving marks: " + str(e)
 
     finally:
 
         db.close()
-
 
 # ==========================================================
 # LOGIN

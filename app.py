@@ -466,22 +466,31 @@ def get_subjects_for_class(class_value):
     class_id = parse_id(class_value)
 
     if not class_id:
-        return []
+        return gr.Dropdown(
+            choices=[],
+            value=None
+        )
 
     db = SessionLocal()
 
     try:
 
-        subjects = db.query(Subject).filter(
-            Subject.active == True
-        ).order_by(
-            Subject.name
-        ).all()
+        subjects = (
+            db.query(Subject)
+            .filter(Subject.active == True)
+            .order_by(Subject.name)
+            .all()
+        )
 
-        return [
+        subject_choices = [
             f"{subject.id} | {subject.name}"
             for subject in subjects
         ]
+
+        return gr.Dropdown(
+            choices=subject_choices,
+            value=None
+        )
 
     finally:
         db.close()

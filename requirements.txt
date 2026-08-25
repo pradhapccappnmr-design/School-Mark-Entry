@@ -1,7 +1,4 @@
 gradio
 sqlalchemy
 pandas
-psycopg2-binarygradio
-SQLAlchemy
 psycopg2-binary
-

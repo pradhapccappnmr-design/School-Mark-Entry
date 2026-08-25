@@ -1,1 +1,4 @@
 gradio
+SQLAlchemy
+psycopg[binary]
+

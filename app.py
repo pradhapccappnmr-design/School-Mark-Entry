@@ -796,10 +796,10 @@ def save_marks(
             Subject,
             subject_id
         )
-    if table_data is None:
-        table_data = []
+        if table_data is None:
+            table_data = []
 
-    for row in table_data:
+        for row in table_data:
 
             if not row:
                 continue

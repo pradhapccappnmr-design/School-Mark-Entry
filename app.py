@@ -4,34 +4,62 @@ import secrets
 from datetime import datetime
 
 import gradio as gr
+import pandas as pd
+
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Boolean,
-    DateTime, ForeignKey, UniqueConstraint
+    create_engine,
+    Column,
+    Integer,
+    String,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint
 )
-from sqlalchemy.orm import declarative_base, sessionmaker
+
+from sqlalchemy.orm import (
+    declarative_base,
+    sessionmaker
+)
 
 
 # ==========================================================
 # SCHOOL MARK ENTRY SYSTEM
 # ==========================================================
 
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    ""
+).strip()
 
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = "postgresql://" + DATABASE_URL[11:]
+    DATABASE_URL = (
+        "postgresql://" +
+        DATABASE_URL[11:]
+    )
+
 
 if DATABASE_URL:
+
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True
     )
+
 else:
+
     engine = create_engine(
         "sqlite:///school_marks.db",
-        connect_args={"check_same_thread": False}
+        connect_args={
+            "check_same_thread": False
+        }
     )
 
-SessionLocal = sessionmaker(bind=engine)
+
+SessionLocal = sessionmaker(
+    bind=engine
+)
+
 Base = declarative_base()
 
 
@@ -40,66 +68,190 @@ Base = declarative_base()
 # ==========================================================
 
 class AcademicYear(Base):
+
     __tablename__ = "academic_years"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(50), unique=True, nullable=False)
-    active = Column(Boolean, default=True)
+    id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    name = Column(
+        String(50),
+        unique=True,
+        nullable=False
+    )
+
+    active = Column(
+        Boolean,
+        default=True
+    )
 
 
 class ClassSection(Base):
+
     __tablename__ = "classes"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(50), unique=True, nullable=False)
+    id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    name = Column(
+        String(50),
+        unique=True,
+        nullable=False
+    )
 
 
 class Student(Base):
+
     __tablename__ = "students"
 
-    id = Column(Integer, primary_key=True)
-    admission_no = Column(String(50), unique=True, nullable=False)
-    roll_no = Column(String(50))
-    name = Column(String(200), nullable=False)
-    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
-    active = Column(Boolean, default=True)
+    id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    admission_no = Column(
+        String(50),
+        unique=True,
+        nullable=False
+    )
+
+    roll_no = Column(
+        String(50)
+    )
+
+    name = Column(
+        String(200),
+        nullable=False
+    )
+
+    class_id = Column(
+        Integer,
+        ForeignKey("classes.id"),
+        nullable=False
+    )
+
+    active = Column(
+        Boolean,
+        default=True
+    )
 
 
 class Teacher(Base):
+
     __tablename__ = "teachers"
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(100), unique=True, nullable=False)
-    name = Column(String(200), nullable=False)
-    password_hash = Column(String(500), nullable=False)
-    role = Column(String(20), default="teacher")
-    active = Column(Boolean, default=True)
+    id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    username = Column(
+        String(100),
+        unique=True,
+        nullable=False
+    )
+
+    name = Column(
+        String(200),
+        nullable=False
+    )
+
+    password_hash = Column(
+        String(500),
+        nullable=False
+    )
+
+    role = Column(
+        String(20),
+        default="teacher"
+    )
+
+    active = Column(
+        Boolean,
+        default=True
+    )
 
 
 class Subject(Base):
+
     __tablename__ = "subjects"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(200), nullable=False)
-    code = Column(String(50), unique=True, nullable=False)
+    id = Column(
+        Integer,
+        primary_key=True
+    )
 
-    theory = Column(Boolean, default=True)
-    practical = Column(Boolean, default=False)
-    internal = Column(Boolean, default=True)
+    name = Column(
+        String(200),
+        nullable=False
+    )
 
-    theory_max = Column(Integer, default=0)
-    practical_max = Column(Integer, default=0)
-    internal_max = Column(Integer, default=0)
+    code = Column(
+        String(50),
+        unique=True,
+        nullable=False
+    )
 
-    active = Column(Boolean, default=True)
+    theory = Column(
+        Boolean,
+        default=True
+    )
+
+    practical = Column(
+        Boolean,
+        default=False
+    )
+
+    internal = Column(
+        Boolean,
+        default=True
+    )
+
+    theory_max = Column(
+        Integer,
+        default=0
+    )
+
+    practical_max = Column(
+        Integer,
+        default=0
+    )
+
+    internal_max = Column(
+        Integer,
+        default=0
+    )
+
+    active = Column(
+        Boolean,
+        default=True
+    )
 
 
 class ClassSubject(Base):
+
     __tablename__ = "class_subjects"
 
-    id = Column(Integer, primary_key=True)
-    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
-    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
+    id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    class_id = Column(
+        Integer,
+        ForeignKey("classes.id"),
+        nullable=False
+    )
+
+    subject_id = Column(
+        Integer,
+        ForeignKey("subjects.id"),
+        nullable=False
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -111,17 +263,34 @@ class ClassSubject(Base):
 
 
 class Exam(Base):
+
     __tablename__ = "exams"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), unique=True, nullable=False)
-    active = Column(Boolean, default=True)
+    id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    name = Column(
+        String(100),
+        unique=True,
+        nullable=False
+    )
+
+    active = Column(
+        Boolean,
+        default=True
+    )
 
 
 class Mark(Base):
+
     __tablename__ = "marks"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(
+        Integer,
+        primary_key=True
+    )
 
     academic_year_id = Column(
         Integer,
@@ -147,10 +316,25 @@ class Mark(Base):
         nullable=False
     )
 
-    theory = Column(Integer, default=0)
-    practical = Column(Integer, default=0)
-    internal = Column(Integer, default=0)
-    total = Column(Integer, default=0)
+    theory = Column(
+        Integer,
+        default=0
+    )
+
+    practical = Column(
+        Integer,
+        default=0
+    )
+
+    internal = Column(
+        Integer,
+        default=0
+    )
+
+    total = Column(
+        Integer,
+        default=0
+    )
 
     updated_at = Column(
         DateTime,
@@ -168,12 +352,17 @@ class Mark(Base):
     )
 
 
-# Create tables
-Base.metadata.create_all(engine)
+# ==========================================================
+# CREATE DATABASE TABLES
+# ==========================================================
+
+Base.metadata.create_all(
+    engine
+)
 
 
 # ==========================================================
-# PASSWORD
+# PASSWORD FUNCTIONS
 # ==========================================================
 
 def hash_password(password):
@@ -187,13 +376,24 @@ def hash_password(password):
         120000
     ).hex()
 
-    return salt + "$" + digest
+    return (
+        salt +
+        "$" +
+        digest
+    )
 
 
-def verify_password(password, stored):
+def verify_password(
+    password,
+    stored
+):
 
     try:
-        salt, digest = stored.split("$", 1)
+
+        salt, digest = stored.split(
+            "$",
+            1
+        )
 
         check = hashlib.pbkdf2_hmac(
             "sha256",
@@ -208,6 +408,7 @@ def verify_password(password, stored):
         )
 
     except Exception:
+
         return False
 
 
@@ -221,8 +422,13 @@ def seed_database():
 
     try:
 
+        # --------------------------------------------------
         # Academic Year
-        if not db.query(AcademicYear).first():
+        # --------------------------------------------------
+
+        if not db.query(
+            AcademicYear
+        ).first():
 
             db.add(
                 AcademicYear(
@@ -231,30 +437,80 @@ def seed_database():
                 )
             )
 
+
+        # --------------------------------------------------
         # Classes
-        if not db.query(ClassSection).first():
+        # --------------------------------------------------
+
+        if not db.query(
+            ClassSection
+        ).first():
 
             db.add_all([
-                ClassSection(name="10-A"),
-                ClassSection(name="10-B"),
-                ClassSection(name="11-A"),
-                ClassSection(name="11-B"),
-                ClassSection(name="12-A"),
-                ClassSection(name="12-B")
+
+                ClassSection(
+                    name="10-A"
+                ),
+
+                ClassSection(
+                    name="10-B"
+                ),
+
+                ClassSection(
+                    name="11-A"
+                ),
+
+                ClassSection(
+                    name="11-B"
+                ),
+
+                ClassSection(
+                    name="12-A"
+                ),
+
+                ClassSection(
+                    name="12-B"
+                )
+
             ])
 
+
+        # --------------------------------------------------
         # Exams
-        if not db.query(Exam).first():
+        # --------------------------------------------------
+
+        if not db.query(
+            Exam
+        ).first():
 
             db.add_all([
-                Exam(name="Unit Test 1"),
-                Exam(name="Quarterly"),
-                Exam(name="Half-Yearly"),
-                Exam(name="Annual")
+
+                Exam(
+                    name="Unit Test 1"
+                ),
+
+                Exam(
+                    name="Quarterly"
+                ),
+
+                Exam(
+                    name="Half-Yearly"
+                ),
+
+                Exam(
+                    name="Annual"
+                )
+
             ])
 
+
+        # --------------------------------------------------
         # Subjects
-        if not db.query(Subject).first():
+        # --------------------------------------------------
+
+        if not db.query(
+            Subject
+        ).first():
 
             db.add_all([
 
@@ -323,8 +579,14 @@ def seed_database():
 
             ])
 
+
+        # --------------------------------------------------
         # Admin
-        if not db.query(Teacher).filter_by(
+        # --------------------------------------------------
+
+        if not db.query(
+            Teacher
+        ).filter_by(
             username="admin"
         ).first():
 
@@ -335,13 +597,19 @@ def seed_database():
                     password_hash=hash_password(
                         "Admin@123"
                     ),
-                    role="admin"
+                    role="admin",
+                    active=True
                 )
             )
 
+
         db.commit()
 
-        # Connect subjects to all classes
+
+        # --------------------------------------------------
+        # Connect Subjects to All Classes
+        # --------------------------------------------------
+
         all_classes = db.query(
             ClassSection
         ).all()
@@ -349,6 +617,7 @@ def seed_database():
         all_subjects = db.query(
             Subject
         ).all()
+
 
         for cls in all_classes:
 
@@ -361,6 +630,7 @@ def seed_database():
                     subject_id=subject.id
                 ).first()
 
+
                 if not exists:
 
                     db.add(
@@ -370,7 +640,9 @@ def seed_database():
                         )
                     )
 
+
         db.commit()
+
 
     finally:
 
@@ -390,13 +662,21 @@ def parse_id(value):
         return None
 
     try:
+
         return int(
-            str(value).split("|", 1)[0].strip()
+            str(value)
+            .split("|", 1)[0]
+            .strip()
         )
 
     except Exception:
+
         return None
 
+
+# ==========================================================
+# GET CLASSES
+# ==========================================================
 
 def get_classes():
 
@@ -404,11 +684,15 @@ def get_classes():
 
     try:
 
-        rows = db.query(
-            ClassSection
-        ).order_by(
-            ClassSection.name
-        ).all()
+        rows = (
+            db.query(
+                ClassSection
+            )
+            .order_by(
+                ClassSection.name
+            )
+            .all()
+        )
 
         return [
             f"{x.id} | {x.name}"
@@ -416,8 +700,13 @@ def get_classes():
         ]
 
     finally:
+
         db.close()
 
+
+# ==========================================================
+# GET YEARS
+# ==========================================================
 
 def get_years():
 
@@ -425,11 +714,18 @@ def get_years():
 
     try:
 
-        rows = db.query(
-            AcademicYear
-        ).filter_by(
-            active=True
-        ).all()
+        rows = (
+            db.query(
+                AcademicYear
+            )
+            .filter_by(
+                active=True
+            )
+            .order_by(
+                AcademicYear.name
+            )
+            .all()
+        )
 
         return [
             f"{x.id} | {x.name}"
@@ -437,8 +733,13 @@ def get_years():
         ]
 
     finally:
+
         db.close()
 
+
+# ==========================================================
+# GET EXAMS
+# ==========================================================
 
 def get_exams():
 
@@ -446,11 +747,18 @@ def get_exams():
 
     try:
 
-        rows = db.query(
-            Exam
-        ).filter_by(
-            active=True
-        ).all()
+        rows = (
+            db.query(
+                Exam
+            )
+            .filter_by(
+                active=True
+            )
+            .order_by(
+                Exam.id
+            )
+            .all()
+        )
 
         return [
             f"{x.id} | {x.name}"
@@ -458,45 +766,164 @@ def get_exams():
         ]
 
     finally:
+
         db.close()
 
 
-def get_subjects_for_class(class_value):
+# ==========================================================
+# GET ALL EXAMS FOR CONSOLIDATED REPORT
+# ==========================================================
 
-    class_id = parse_id(class_value)
+def get_all_exams():
+
+    db = SessionLocal()
+
+    try:
+
+        exams = (
+            db.query(
+                Exam
+            )
+            .filter(
+                Exam.active == True
+            )
+            .order_by(
+                Exam.id
+            )
+            .all()
+        )
+
+        choices = [
+            "ALL | All Exams"
+        ]
+
+        choices.extend([
+            f"{exam.id} | {exam.name}"
+            for exam in exams
+        ])
+
+        return choices
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# GET SUBJECTS FOR CLASS
+# ==========================================================
+
+def get_subjects_for_class(
+    class_value
+):
+
+    class_id = parse_id(
+        class_value
+    )
 
     if not class_id:
+
         return gr.Dropdown(
             choices=[],
             value=None
         )
+
 
     db = SessionLocal()
 
     try:
 
         subjects = (
-            db.query(Subject)
-            .filter(Subject.active == True)
-            .order_by(Subject.name)
+            db.query(
+                Subject
+            )
+            .join(
+                ClassSubject,
+                ClassSubject.subject_id ==
+                Subject.id
+            )
+            .filter(
+                ClassSubject.class_id == class_id,
+                Subject.active == True
+            )
+            .order_by(
+                Subject.name
+            )
             .all()
         )
+
 
         subject_choices = [
             f"{subject.id} | {subject.name}"
             for subject in subjects
         ]
 
+
         return gr.Dropdown(
             choices=subject_choices,
             value=None
         )
 
+
     finally:
+
         db.close()
 
+
 # ==========================================================
-# STUDENT MANAGEMENT
+# STUDENT LIST
+# ==========================================================
+
+def get_student_list():
+
+    db = SessionLocal()
+
+    try:
+
+        rows = (
+            db.query(
+                Student,
+                ClassSection
+            )
+            .join(
+                ClassSection,
+                Student.class_id ==
+                ClassSection.id
+            )
+            .filter(
+                Student.active == True
+            )
+            .order_by(
+                ClassSection.name,
+                Student.roll_no,
+                Student.name
+            )
+            .all()
+        )
+
+
+        return [
+
+            [
+                student.id,
+                student.admission_no,
+                student.roll_no or "",
+                student.name,
+                cls.name
+            ]
+
+            for student, cls in rows
+
+        ]
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# ADD STUDENT
 # ==========================================================
 
 def add_student(
@@ -518,9 +945,11 @@ def add_student(
         student_name or ""
     ).strip()
 
+
     class_id = parse_id(
         class_value
     )
+
 
     if not admission_no:
 
@@ -529,12 +958,14 @@ def add_student(
             get_student_list()
         )
 
+
     if not student_name:
 
         return (
             "❌ Student Name is required.",
             get_student_list()
         )
+
 
     if not class_id:
 
@@ -543,15 +974,19 @@ def add_student(
             get_student_list()
         )
 
+
     db = SessionLocal()
 
     try:
 
-        old_student = db.query(
-            Student
-        ).filter_by(
-            admission_no=admission_no
-        ).first()
+        old_student = (
+            db.query(Student)
+            .filter_by(
+                admission_no=admission_no
+            )
+            .first()
+        )
+
 
         if old_student:
 
@@ -560,21 +995,34 @@ def add_student(
                 get_student_list()
             )
 
+
         new_student = Student(
+
             admission_no=admission_no,
+
             roll_no=roll_no,
+
             name=student_name,
+
             class_id=class_id,
+
             active=True
+
         )
 
-        db.add(new_student)
+
+        db.add(
+            new_student
+        )
+
         db.commit()
+
 
         return (
             "✅ Student added successfully.",
             get_student_list()
         )
+
 
     except Exception as e:
 
@@ -585,48 +1033,6 @@ def add_student(
             get_student_list()
         )
 
-    finally:
-
-        db.close()
-
-
-def get_student_list():
-
-    db = SessionLocal()
-
-    try:
-
-        rows = (
-            db.query(
-                Student,
-                ClassSection
-            )
-            .join(
-                ClassSection,
-                Student.class_id == ClassSection.id
-            )
-            .filter(
-                Student.active == True
-            )
-            .order_by(
-                ClassSection.name,
-                Student.roll_no,
-                Student.name
-            )
-            .all()
-        )
-
-        return [
-            [
-                student.id,
-                student.admission_no,
-                student.roll_no or "",
-                student.name,
-                cls.name
-            ]
-
-            for student, cls in rows
-        ]
 
     finally:
 
@@ -634,7 +1040,7 @@ def get_student_list():
 
 
 # ==========================================================
-# MARK ENTRY
+# MARK ENTRY - LOAD MARKS
 # ==========================================================
 
 def load_marks(
@@ -644,10 +1050,22 @@ def load_marks(
     subject_value
 ):
 
-    class_id = parse_id(class_value)
-    year_id = parse_id(year_value)
-    exam_id = parse_id(exam_value)
-    subject_id = parse_id(subject_value)
+    class_id = parse_id(
+        class_value
+    )
+
+    year_id = parse_id(
+        year_value
+    )
+
+    exam_id = parse_id(
+        exam_value
+    )
+
+    subject_id = parse_id(
+        subject_value
+    )
+
 
     if not all([
         class_id,
@@ -658,8 +1076,9 @@ def load_marks(
 
         return (
             [],
-            "Please select all options."
+            "❌ Please select all options."
         )
+
 
     db = SessionLocal()
 
@@ -670,8 +1089,19 @@ def load_marks(
             subject_id
         )
 
+
+        if subject is None:
+
+            return (
+                [],
+                "❌ Subject not found."
+            )
+
+
         students = (
-            db.query(Student)
+            db.query(
+                Student
+            )
             .filter_by(
                 class_id=class_id,
                 active=True
@@ -683,6 +1113,7 @@ def load_marks(
             .all()
         )
 
+
         headers = [
             "ID",
             "Roll No",
@@ -690,36 +1121,70 @@ def load_marks(
             "Theory"
         ]
 
+
         if subject.practical:
-            headers.append("Practical")
+
+            headers.append(
+                "Practical"
+            )
+
 
         if subject.internal:
-            headers.append("Internal")
 
-        headers.append("Total")
+            headers.append(
+                "Internal"
+            )
+
+
+        headers.append(
+            "Total"
+        )
+
 
         rows = []
 
+
         for student in students:
 
-            mark = db.query(
-                Mark
-            ).filter_by(
-                academic_year_id=year_id,
-                exam_id=exam_id,
-                student_id=student.id,
-                subject_id=subject_id
-            ).first()
+            mark = (
+                db.query(Mark)
+                .filter_by(
+                    academic_year_id=year_id,
+                    exam_id=exam_id,
+                    student_id=student.id,
+                    subject_id=subject_id
+                )
+                .first()
+            )
 
-            theory = mark.theory if mark else 0
-            practical = mark.practical if mark else 0
-            internal = mark.internal if mark else 0
+
+            theory = (
+                mark.theory
+                if mark
+                else 0
+            )
+
+
+            practical = (
+                mark.practical
+                if mark
+                else 0
+            )
+
+
+            internal = (
+                mark.internal
+                if mark
+                else 0
+            )
+
 
             total = (
                 theory +
                 practical +
                 internal
             )
+
 
             row = [
                 student.id,
@@ -728,43 +1193,73 @@ def load_marks(
                 theory
             ]
 
+
             if subject.practical:
-                row.append(practical)
+
+                row.append(
+                    practical
+                )
+
 
             if subject.internal:
-                row.append(internal)
 
-            row.append(total)
+                row.append(
+                    internal
+                )
 
-            rows.append(row)
+
+            row.append(
+                total
+            )
+
+
+            rows.append(
+                row
+            )
+
 
         pattern = []
 
+
         if subject.theory:
+
             pattern.append(
                 f"Theory / {subject.theory_max}"
             )
 
+
         if subject.practical:
+
             pattern.append(
                 f"Practical / {subject.practical_max}"
             )
 
+
         if subject.internal:
+
             pattern.append(
                 f"Internal / {subject.internal_max}"
             )
 
+
         return (
+
             rows,
+
             "**Mark Pattern:** " +
             " + ".join(pattern)
+
         )
+
 
     finally:
 
         db.close()
 
+
+# ==========================================================
+# MARK ENTRY - SAVE MARKS
+# ==========================================================
 
 def save_marks(
     class_value,
@@ -774,141 +1269,262 @@ def save_marks(
     table_data
 ):
 
-    class_id = parse_id(class_value)
-    year_id = parse_id(year_value)
-    exam_id = parse_id(exam_value)
-    subject_id = parse_id(subject_value)
+    class_id = parse_id(
+        class_value
+    )
+
+    year_id = parse_id(
+        year_value
+    )
+
+    exam_id = parse_id(
+        exam_value
+    )
+
+    subject_id = parse_id(
+        subject_value
+    )
+
 
     if not class_id:
+
         return "❌ Please select Class."
 
+
     if not year_id:
+
         return "❌ Please select Academic Year."
 
+
     if not exam_id:
+
         return "❌ Please select Exam."
 
+
     if not subject_id:
+
         return "❌ Please select Subject."
 
+
     if table_data is None:
-        return "❌ No student data found. Please click Load Students."
+
+        return (
+            "❌ No student data found. "
+            "Please click Load Students."
+        )
+
 
     db = SessionLocal()
 
     try:
 
-        subject = db.query(
-            Subject
-        ).filter(
-            Subject.id == subject_id
-        ).first()
+        subject = (
+            db.query(
+                Subject
+            )
+            .filter(
+                Subject.id == subject_id
+            )
+            .first()
+        )
+
 
         if subject is None:
+
             return "❌ Subject not found."
 
-        # Gradio Dataframe may return a Pandas DataFrame.
-        # Convert it to normal rows.
-        if hasattr(table_data, "values"):
-            rows = table_data.values.tolist()
+
+        if hasattr(
+            table_data,
+            "values"
+        ):
+
+            rows = (
+                table_data
+                .values
+                .tolist()
+            )
+
         else:
+
             rows = table_data
 
+
         if not rows:
-            return "❌ No student rows found."
+
+            return (
+                "❌ No student rows found."
+            )
+
 
         saved_count = 0
+
 
         for row in rows:
 
             if row is None:
+
                 continue
 
-            # Make sure the row has enough columns.
+
             if len(row) < 4:
+
                 continue
+
 
             try:
-                student_id = int(row[0])
+
+                student_id = int(
+                    row[0]
+                )
+
             except Exception:
+
                 continue
+
 
             position = 3
 
+
+            # --------------------------------------------------
             # Theory
+            # --------------------------------------------------
+
             theory = 0
 
+
             if len(row) > position:
-                if row[position] not in [None, ""]:
-                    theory = int(float(row[position]))
+
+                if row[position] not in [
+                    None,
+                    ""
+                ]:
+
+                    theory = int(
+                        float(
+                            row[position]
+                        )
+                    )
+
 
             position += 1
 
+
+            # --------------------------------------------------
             # Practical
+            # --------------------------------------------------
+
             practical = 0
+
 
             if subject.practical:
 
                 if len(row) > position:
 
-                    if row[position] not in [None, ""]:
+                    if row[position] not in [
+                        None,
+                        ""
+                    ]:
+
                         practical = int(
-                            float(row[position])
+                            float(
+                                row[position]
+                            )
                         )
+
 
                 position += 1
 
+
+            # --------------------------------------------------
             # Internal
+            # --------------------------------------------------
+
             internal = 0
+
 
             if subject.internal:
 
                 if len(row) > position:
 
-                    if row[position] not in [None, ""]:
+                    if row[position] not in [
+                        None,
+                        ""
+                    ]:
+
                         internal = int(
-                            float(row[position])
+                            float(
+                                row[position]
+                            )
                         )
+
 
                 position += 1
 
-            # Automatic Total
+
+            # --------------------------------------------------
+            # Total
+            # --------------------------------------------------
+
             total = (
                 theory +
                 practical +
                 internal
             )
 
-            # Find existing mark
-            mark = db.query(
-                Mark
-            ).filter_by(
-                academic_year_id=year_id,
-                exam_id=exam_id,
-                student_id=student_id,
-                subject_id=subject_id
-            ).first()
 
-            # Create new mark if not exists
-            if mark is None:
+            # --------------------------------------------------
+            # Existing Mark
+            # --------------------------------------------------
 
-                mark = Mark(
+            mark = (
+                db.query(Mark)
+                .filter_by(
                     academic_year_id=year_id,
                     exam_id=exam_id,
                     student_id=student_id,
                     subject_id=subject_id
                 )
+                .first()
+            )
 
-                db.add(mark)
 
-            # Save marks
+            if mark is None:
+
+                mark = Mark(
+
+                    academic_year_id=year_id,
+
+                    exam_id=exam_id,
+
+                    student_id=student_id,
+
+                    subject_id=subject_id
+
+                )
+
+                db.add(
+                    mark
+                )
+
+
+            # --------------------------------------------------
+            # Save
+            # --------------------------------------------------
+
             mark.theory = theory
+
             mark.practical = practical
+
             mark.internal = internal
+
             mark.total = total
+
             mark.updated_at = datetime.utcnow()
 
+
             saved_count += 1
+
 
         if saved_count == 0:
 
@@ -917,64 +1533,25 @@ def save_marks(
                 "Please click Load Students again."
             )
 
+
         db.commit()
+
 
         return (
             f"✅ Marks saved successfully for "
             f"{saved_count} student(s)."
         )
 
+
     except Exception as e:
 
         db.rollback()
 
-        return "❌ Error while saving marks: " + str(e)
-
-    finally:
-
-        db.close()
-
-# ==========================================================
-# LOGIN
-# ==========================================================
-
-def login(
-    username,
-    password
-):
-
-    db = SessionLocal()
-
-    try:
-
-        teacher = db.query(
-            Teacher
-        ).filter_by(
-            username=(username or "").strip(),
-            active=True
-        ).first()
-
-        if not teacher:
-
-            return (
-                "❌ Invalid username or password.",
-                gr.update(visible=False)
-            )
-
-        if not verify_password(
-            password or "",
-            teacher.password_hash
-        ):
-
-            return (
-                "❌ Invalid username or password.",
-                gr.update(visible=False)
-            )
-
         return (
-            f"✅ Welcome, {teacher.name}",
-            gr.update(visible=True)
+            "❌ Error while saving marks: " +
+            str(e)
         )
+
 
     finally:
 
@@ -982,298 +1559,8 @@ def login(
 
 
 # ==========================================================
-# GRADIO UI
+# CONSOLIDATED MARK LIST
 # ==========================================================
-
-css = """
-.gradio-container {
-    max-width: 1450px !important;
-}
-"""
-
-with gr.Blocks(
-    title="School Mark Entry",
-    css=css
-) as demo:
-
-    gr.Markdown(
-        "# 🏫 School Mark Entry System"
-    )
-
-    gr.Markdown(
-        "### Login"
-    )
-
-    with gr.Row():
-
-        username = gr.Textbox(
-            label="Username"
-        )
-
-        password = gr.Textbox(
-            label="Password",
-            type="password"
-        )
-
-        login_button = gr.Button(
-            "🔐 Login",
-            variant="primary"
-        )
-
-    login_message = gr.Markdown()
-
-    with gr.Column(
-        visible=False
-    ) as application:
-
-        with gr.Tabs():
-
-            # ==================================================
-            # STUDENT MANAGEMENT
-            # ==================================================
-
-            with gr.Tab(
-                "👨‍🎓 Student Management"
-            ):
-
-                gr.Markdown(
-                    "## Student Management"
-                )
-
-                with gr.Row():
-
-                    admission_no = gr.Textbox(
-                        label="Admission No"
-                    )
-
-                    roll_no = gr.Textbox(
-                        label="Roll No"
-                    )
-
-                    student_name = gr.Textbox(
-                        label="Student Name"
-                    )
-
-                    student_class = gr.Dropdown(
-                        choices=get_classes(),
-                        label="Class"
-                    )
-
-                add_student_button = gr.Button(
-                    "➕ Add Student",
-                    variant="primary"
-                )
-
-                student_message = gr.Markdown()
-
-                student_table = gr.Dataframe(
-                    headers=[
-                        "ID",
-                        "Admission No",
-                        "Roll No",
-                        "Student Name",
-                        "Class"
-                    ],
-                    value=get_student_list(),
-                    interactive=False
-                )
-
-                add_student_button.click(
-                    add_student,
-                    inputs=[
-                        admission_no,
-                        roll_no,
-                        student_name,
-                        student_class
-                    ],
-                    outputs=[
-                        student_message,
-                        student_table
-                    ]
-                )
-
-
-            # ==================================================
-            # MARK ENTRY
-            # ==================================================
-
-            with gr.Tab(
-                "📝 Mark Entry"
-            ):
-
-                gr.Markdown(
-                    "## Mark Entry"
-                )
-
-                with gr.Row():
-
-                    mark_year = gr.Dropdown(
-                        choices=get_years(),
-                        label="Academic Year"
-                    )
-
-                    mark_class = gr.Dropdown(
-                        choices=get_classes(),
-                        label="Class"
-                    )
-
-                    mark_exam = gr.Dropdown(
-                        choices=get_exams(),
-                        label="Exam"
-                    )
-
-                    mark_subject = gr.Dropdown(
-                        choices=[],
-                        label="Subject"
-                    )
-
-                mark_class.change(
-                    get_subjects_for_class,
-                    inputs=mark_class,
-                    outputs=mark_subject
-                )
-
-                mark_pattern = gr.Markdown()
-
-                load_button = gr.Button(
-                    "Load Students"
-                )
-
-                marks_table = gr.Dataframe(
-                    interactive=True
-                )
-
-                load_button.click(
-                    load_marks,
-                    inputs=[
-                        mark_class,
-                        mark_year,
-                        mark_exam,
-                        mark_subject
-                    ],
-                    outputs=[
-                        marks_table,
-                        mark_pattern
-                    ]
-                )
-
-                save_button = gr.Button(
-                    "💾 Save Marks",
-                    variant="primary"
-                )
-
-                save_message = gr.Markdown()
-
-                save_button.click(
-                    save_marks,
-                    inputs=[
-                        mark_class,
-                        mark_year,
-                        mark_exam,
-                        mark_subject,
-                        marks_table
-                    ],
-                    outputs=save_message
-                )
-
-
-            # ==================================================
-            # VIEW MARKS
-            # ==================================================
-
-            with gr.Tab(
-                "👁️ View Marks"
-            ):
-
-                gr.Markdown(
-                    "## Subject-wise Mark View"
-                )
-
-                with gr.Row():
-
-                    view_year = gr.Dropdown(
-                        choices=get_years(),
-                        label="Academic Year"
-                    )
-
-                    view_class = gr.Dropdown(
-                        choices=get_classes(),
-                        label="Class"
-                    )
-
-                    view_exam = gr.Dropdown(
-                        choices=get_exams(),
-                        label="Exam"
-                    )
-
-                    view_subject = gr.Dropdown(
-                        choices=[],
-                        label="Subject"
-                    )
-
-                view_class.change(
-                    get_subjects_for_class,
-                    inputs=view_class,
-                    outputs=view_subject
-                )
-
-                view_button = gr.Button(
-                    "View Marks"
-                )
-
-                view_pattern = gr.Markdown()
-
-                view_table = gr.Dataframe(
-                    interactive=False
-                )
-
-                view_button.click(
-                    load_marks,
-                    inputs=[
-                        view_class,
-                        view_year,
-                        view_exam,
-                        view_subject
-                    ],
-                    outputs=[
-                        view_table,
-                        view_pattern
-                    ]
-                )
-
-
-          # ==========================================================
-# CONSOLIDATED MARK LIST / PRINT
-# ==========================================================
-
-def get_all_exams():
-
-    db = SessionLocal()
-
-    try:
-
-        exams = (
-            db.query(Exam)
-            .filter(Exam.active == True)
-            .order_by(Exam.id)
-            .all()
-        )
-
-        choices = [
-            "ALL | All Exams"
-        ]
-
-        choices.extend([
-            f"{exam.id} | {exam.name}"
-            for exam in exams
-        ])
-
-        return choices
-
-    finally:
-
-        db.close()
-
 
 def generate_consolidated_report(
     year_value,
@@ -1281,41 +1568,74 @@ def generate_consolidated_report(
     exam_value
 ):
 
-    year_id = parse_id(year_value)
-    class_id = parse_id(class_value)
+    year_id = parse_id(
+        year_value
+    )
+
+    class_id = parse_id(
+        class_value
+    )
+
 
     if not year_id:
-        return "❌ Please select Academic Year.", []
+
+        return (
+            "❌ Please select Academic Year.",
+            pd.DataFrame()
+        )
+
 
     if not class_id:
-        return "❌ Please select Class.", []
+
+        return (
+            "❌ Please select Class.",
+            pd.DataFrame()
+        )
+
 
     if not exam_value:
-        return "❌ Please select Exam.", []
+
+        return (
+            "❌ Please select Exam.",
+            pd.DataFrame()
+        )
+
 
     db = SessionLocal()
 
     try:
 
         # --------------------------------------------------
-        # Class
+        # CLASS
         # --------------------------------------------------
 
-        class_obj = db.query(
-            ClassSection
-        ).filter(
-            ClassSection.id == class_id
-        ).first()
+        class_obj = (
+            db.query(
+                ClassSection
+            )
+            .filter(
+                ClassSection.id == class_id
+            )
+            .first()
+        )
+
 
         if class_obj is None:
-            return "❌ Class not found.", []
+
+            return (
+                "❌ Class not found.",
+                pd.DataFrame()
+            )
+
 
         # --------------------------------------------------
-        # Students
+        # STUDENTS
         # --------------------------------------------------
 
         students = (
-            db.query(Student)
+            db.query(
+                Student
+            )
             .filter(
                 Student.class_id == class_id,
                 Student.active == True
@@ -1327,21 +1647,27 @@ def generate_consolidated_report(
             .all()
         )
 
+
         if not students:
+
             return (
                 "❌ No students found in this class.",
-                []
+                pd.DataFrame()
             )
 
+
         # --------------------------------------------------
-        # Subjects
+        # SUBJECTS
         # --------------------------------------------------
 
         subjects = (
-            db.query(Subject)
+            db.query(
+                Subject
+            )
             .join(
                 ClassSubject,
-                ClassSubject.subject_id == Subject.id
+                ClassSubject.subject_id ==
+                Subject.id
             )
             .filter(
                 ClassSubject.class_id == class_id,
@@ -1353,21 +1679,27 @@ def generate_consolidated_report(
             .all()
         )
 
+
         if not subjects:
 
             return (
                 "❌ No subjects found for this class.",
-                []
+                pd.DataFrame()
             )
 
+
         # --------------------------------------------------
-        # Exams
+        # EXAMS
         # --------------------------------------------------
 
-        if str(exam_value).startswith("ALL"):
+        if str(
+            exam_value
+        ).startswith("ALL"):
 
             exams = (
-                db.query(Exam)
+                db.query(
+                    Exam
+                )
                 .filter(
                     Exam.active == True
                 )
@@ -1383,23 +1715,41 @@ def generate_consolidated_report(
                 exam_value
             )
 
-            exam_obj = db.query(
-                Exam
-            ).filter(
-                Exam.id == exam_id
-            ).first()
+
+            exam_obj = (
+                db.query(
+                    Exam
+                )
+                .filter(
+                    Exam.id == exam_id
+                )
+                .first()
+            )
+
 
             if exam_obj is None:
 
                 return (
                     "❌ Exam not found.",
-                    []
+                    pd.DataFrame()
                 )
 
-            exams = [exam_obj]
+
+            exams = [
+                exam_obj
+            ]
+
+
+        if not exams:
+
+            return (
+                "❌ No exams found.",
+                pd.DataFrame()
+            )
+
 
         # --------------------------------------------------
-        # Table Header
+        # TABLE HEADERS
         # --------------------------------------------------
 
         headers = [
@@ -1407,78 +1757,103 @@ def generate_consolidated_report(
             "Student Name"
         ]
 
+
         for exam in exams:
 
             for subject in subjects:
 
-                headers.append(
-                    f"{exam.name} - {subject.name} Theory"
-                )
+                if subject.theory:
+
+                    headers.append(
+                        f"{exam.name} - "
+                        f"{subject.name} Theory"
+                    )
+
 
                 if subject.practical:
 
                     headers.append(
-                        f"{exam.name} - {subject.name} Practical"
+                        f"{exam.name} - "
+                        f"{subject.name} Practical"
                     )
+
 
                 if subject.internal:
 
                     headers.append(
-                        f"{exam.name} - {subject.name} Internal"
+                        f"{exam.name} - "
+                        f"{subject.name} Internal"
                     )
 
+
                 headers.append(
-                    f"{exam.name} - {subject.name} Total"
+                    f"{exam.name} - "
+                    f"{subject.name} Total"
                 )
+
 
             headers.append(
                 f"{exam.name} Grand Total"
             )
 
+
         # --------------------------------------------------
-        # Data Rows
+        # DATA ROWS
         # --------------------------------------------------
 
         report_rows = []
 
+
         for student in students:
 
             row = [
+
                 student.roll_no or "",
+
                 student.name
+
             ]
 
-            overall_total = 0
 
             for exam in exams:
 
                 exam_total = 0
 
+
                 for subject in subjects:
 
-                    mark = db.query(
-                        Mark
-                    ).filter_by(
-                        academic_year_id=year_id,
-                        exam_id=exam.id,
-                        student_id=student.id,
-                        subject_id=subject.id
-                    ).first()
+                    mark = (
+                        db.query(Mark)
+                        .filter_by(
+                            academic_year_id=year_id,
+                            exam_id=exam.id,
+                            student_id=student.id,
+                            subject_id=subject.id
+                        )
+                        .first()
+                    )
+
 
                     theory = (
                         mark.theory
-                        if mark else 0
+                        if mark
+                        else 0
                     )
+
 
                     practical = (
                         mark.practical
-                        if mark else 0
+                        if mark
+                        else 0
                     )
+
 
                     internal = (
                         mark.internal
-                        if mark else 0
+                        if mark
+                        else 0
                     )
+
 
                     total = (
                         theory +
@@ -1486,7 +1861,13 @@ def generate_consolidated_report(
                         internal
                     )
 
-                    row.append(theory)
+
+                    if subject.theory:
+
+                        row.append(
+                            theory
+                        )
+
 
                     if subject.practical:
 
@@ -1494,127 +1875,681 @@ def generate_consolidated_report(
                             practical
                         )
 
+
                     if subject.internal:
 
                         row.append(
                             internal
                         )
 
+
                     row.append(
                         total
                     )
 
+
                     exam_total += total
+
 
                 row.append(
                     exam_total
                 )
 
-                overall_total += exam_total
 
-            report_rows.append(row)
+            report_rows.append(
+                row
+            )
+
 
         # --------------------------------------------------
-        # Final Message
+        # DATAFRAME
         # --------------------------------------------------
 
-        message = (
-            f"### 📊 Consolidated Mark List\n\n"
-            f"**Academic Year:** "
-            f"{year_value.split('|', 1)[1].strip()}\n\n"
-            f"**Class:** {class_obj.name}\n\n"
-            f"**Students:** {len(students)}\n\n"
-            f"**Subjects:** {len(subjects)}\n\n"
-            f"**Exams:** "
-            f"{', '.join(exam.name for exam in exams)}"
+        report_df = pd.DataFrame(
+            report_rows,
+            columns=headers
         )
 
-        return message, [
-            headers
-        ] + report_rows
+
+        # --------------------------------------------------
+        # MESSAGE
+        # --------------------------------------------------
+
+        year_name = (
+            str(year_value)
+            .split("|", 1)[1]
+            .strip()
+            if "|" in str(year_value)
+            else str(year_value)
+        )
+
+
+        exam_names = ", ".join(
+            exam.name
+            for exam in exams
+        )
+
+
+        message = (
+
+            "### 📊 Consolidated Mark List\n\n"
+
+            f"**Academic Year:** "
+            f"{year_name}\n\n"
+
+            f"**Class:** "
+            f"{class_obj.name}\n\n"
+
+            f"**Students:** "
+            f"{len(students)}\n\n"
+
+            f"**Subjects:** "
+            f"{len(subjects)}\n\n"
+
+            f"**Exams:** "
+            f"{exam_names}"
+
+        )
+
+
+        return (
+            message,
+            report_df
+        )
+
+
+    except Exception as e:
+
+        return (
+            "❌ Error while generating report: "
+            + str(e),
+            pd.DataFrame()
+        )
+
+
+    finally:
+
+        db.close()
 
 
 # ==========================================================
-# CONSOLIDATED REPORT UI
+# LOGIN
 # ==========================================================
 
-with gr.Tab(
-    "📊 Mark List / Print"
+def login(
+    username,
+    password
 ):
 
-    gr.Markdown(
-        "## 📊 Consolidated Mark List"
-    )
+    db = SessionLocal()
+
+    try:
+
+        teacher = (
+            db.query(
+                Teacher
+            )
+            .filter_by(
+                username=(
+                    username or ""
+                ).strip(),
+                active=True
+            )
+            .first()
+        )
+
+
+        if not teacher:
+
+            return (
+                "❌ Invalid username or password.",
+                gr.update(
+                    visible=False
+                )
+            )
+
+
+        if not verify_password(
+            password or "",
+            teacher.password_hash
+        ):
+
+            return (
+                "❌ Invalid username or password.",
+                gr.update(
+                    visible=False
+                )
+            )
+
+
+        return (
+            f"✅ Welcome, {teacher.name}",
+            gr.update(
+                visible=True
+            )
+        )
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# GRADIO CSS
+# ==========================================================
+
+css = """
+
+.gradio-container {
+    max-width: 1450px !important;
+}
+
+"""
+
+
+# ==========================================================
+# GRADIO APPLICATION
+# ==========================================================
+
+with gr.Blocks(
+    title="School Mark Entry",
+    css=css
+) as demo:
+
+    # ======================================================
+    # LOGIN
+    # ======================================================
 
     gr.Markdown(
-        "Select Academic Year, Class and Exam."
+        "# 🏫 School Mark Entry System"
     )
+
+
+    gr.Markdown(
+        "### 🔐 Login"
+    )
+
 
     with gr.Row():
 
-        list_year = gr.Dropdown(
-            choices=get_years(),
-            label="Academic Year",
-            interactive=True
+        username = gr.Textbox(
+            label="Username",
+            placeholder="Enter username"
         )
 
-        list_class = gr.Dropdown(
-            choices=get_classes(),
-            label="Class",
-            interactive=True
+
+        password = gr.Textbox(
+            label="Password",
+            type="password",
+            placeholder="Enter password"
         )
 
-        list_exam = gr.Dropdown(
-            choices=get_all_exams(),
-            label="Exam",
-            interactive=True
+
+        login_button = gr.Button(
+            "🔐 Login",
+            variant="primary"
         )
 
-    consolidated_button = gr.Button(
-        "📋 View Consolidated Mark List",
-        variant="primary"
-    )
 
-    consolidated_message = gr.Markdown()
+    login_message = gr.Markdown()
 
-    consolidated_table = gr.Dataframe(
-        headers=[],
-        interactive=False,
-        wrap=True
-    )
 
-    print_message = gr.Markdown(
-        "🖨️ To print this report, use **Ctrl + P** "
-        "in your browser."
-    )
+    # ======================================================
+    # APPLICATION
+    # ======================================================
 
-    consolidated_button.click(
-        generate_consolidated_report,
-        inputs=[
-            list_year,
-            list_class,
-            list_exam
-        ],
-        outputs=[
-            consolidated_message,
-            consolidated_table
-        ]
-    )
+    with gr.Column(
+        visible=False
+    ) as application:
+
+
+        with gr.Tabs():
+
+
+            # ==================================================
+            # STUDENT MANAGEMENT
+            # ==================================================
+
+            with gr.Tab(
+                "👨‍🎓 Student Management"
+            ):
+
+                gr.Markdown(
+                    "## 👨‍🎓 Student Management"
+                )
+
+
+                with gr.Row():
+
+                    admission_no = gr.Textbox(
+                        label="Admission No"
+                    )
+
+
+                    roll_no = gr.Textbox(
+                        label="Roll No"
+                    )
+
+
+                    student_name = gr.Textbox(
+                        label="Student Name"
+                    )
+
+
+                    student_class = gr.Dropdown(
+                        choices=get_classes(),
+                        label="Class"
+                    )
+
+
+                add_student_button = gr.Button(
+                    "➕ Add Student",
+                    variant="primary"
+                )
+
+
+                student_message = gr.Markdown()
+
+
+                student_table = gr.Dataframe(
+
+                    headers=[
+                        "ID",
+                        "Admission No",
+                        "Roll No",
+                        "Student Name",
+                        "Class"
+                    ],
+
+                    value=get_student_list(),
+
+                    interactive=False
+
+                )
+
+
+                add_student_button.click(
+
+                    add_student,
+
+                    inputs=[
+
+                        admission_no,
+
+                        roll_no,
+
+                        student_name,
+
+                        student_class
+
+                    ],
+
+                    outputs=[
+
+                        student_message,
+
+                        student_table
+
+                    ]
+
+                )
+
+
+            # ==================================================
+            # MARK ENTRY
+            # ==================================================
+
+            with gr.Tab(
+                "📝 Mark Entry"
+            ):
+
+                gr.Markdown(
+                    "## 📝 Mark Entry"
+                )
+
+
+                with gr.Row():
+
+                    mark_year = gr.Dropdown(
+                        choices=get_years(),
+                        label="Academic Year"
+                    )
+
+
+                    mark_class = gr.Dropdown(
+                        choices=get_classes(),
+                        label="Class"
+                    )
+
+
+                    mark_exam = gr.Dropdown(
+                        choices=get_exams(),
+                        label="Exam"
+                    )
+
+
+                    mark_subject = gr.Dropdown(
+                        choices=[],
+                        label="Subject"
+                    )
+
+
+                mark_class.change(
+
+                    get_subjects_for_class,
+
+                    inputs=mark_class,
+
+                    outputs=mark_subject
+
+                )
+
+
+                mark_pattern = gr.Markdown()
+
+
+                load_button = gr.Button(
+                    "📥 Load Students"
+                )
+
+
+                marks_table = gr.Dataframe(
+                    interactive=True
+                )
+
+
+                load_button.click(
+
+                    load_marks,
+
+                    inputs=[
+
+                        mark_class,
+
+                        mark_year,
+
+                        mark_exam,
+
+                        mark_subject
+
+                    ],
+
+                    outputs=[
+
+                        marks_table,
+
+                        mark_pattern
+
+                    ]
+
+                )
+
+
+                save_button = gr.Button(
+                    "💾 Save Marks",
+                    variant="primary"
+                )
+
+
+                save_message = gr.Markdown()
+
+
+                save_button.click(
+
+                    save_marks,
+
+                    inputs=[
+
+                        mark_class,
+
+                        mark_year,
+
+                        mark_exam,
+
+                        mark_subject,
+
+                        marks_table
+
+                    ],
+
+                    outputs=save_message
+
+                )
+
+
+            # ==================================================
+            # VIEW MARKS
+            # ==================================================
+
+            with gr.Tab(
+                "👁️ View Marks"
+            ):
+
+                gr.Markdown(
+                    "## 👁️ Subject-wise Mark View"
+                )
+
+
+                with gr.Row():
+
+                    view_year = gr.Dropdown(
+                        choices=get_years(),
+                        label="Academic Year"
+                    )
+
+
+                    view_class = gr.Dropdown(
+                        choices=get_classes(),
+                        label="Class"
+                    )
+
+
+                    view_exam = gr.Dropdown(
+                        choices=get_exams(),
+                        label="Exam"
+                    )
+
+
+                    view_subject = gr.Dropdown(
+                        choices=[],
+                        label="Subject"
+                    )
+
+
+                view_class.change(
+
+                    get_subjects_for_class,
+
+                    inputs=view_class,
+
+                    outputs=view_subject
+
+                )
+
+
+                view_button = gr.Button(
+                    "👁️ View Marks"
+                )
+
+
+                view_pattern = gr.Markdown()
+
+
+                view_table = gr.Dataframe(
+                    interactive=False
+                )
+
+
+                view_button.click(
+
+                    load_marks,
+
+                    inputs=[
+
+                        view_class,
+
+                        view_year,
+
+                        view_exam,
+
+                        view_subject
+
+                    ],
+
+                    outputs=[
+
+                        view_table,
+
+                        view_pattern
+
+                    ]
+
+                )
+
+
+            # ==================================================
+            # CONSOLIDATED MARK LIST / PRINT
+            # ==================================================
+
+            with gr.Tab(
+                "📊 Mark List / Print"
+            ):
+
+                gr.Markdown(
+                    "## 📊 Consolidated Mark List"
+                )
+
+
+                gr.Markdown(
+                    "Select Academic Year, Class and Exam."
+                )
+
+
+                with gr.Row():
+
+                    list_year = gr.Dropdown(
+
+                        choices=get_years(),
+
+                        label="Academic Year",
+
+                        interactive=True
+
+                    )
+
+
+                    list_class = gr.Dropdown(
+
+                        choices=get_classes(),
+
+                        label="Class",
+
+                        interactive=True
+
+                    )
+
+
+                    list_exam = gr.Dropdown(
+
+                        choices=get_all_exams(),
+
+                        label="Exam",
+
+                        interactive=True
+
+                    )
+
+
+                consolidated_button = gr.Button(
+
+                    "📋 View Consolidated Mark List",
+
+                    variant="primary"
+
+                )
+
+
+                consolidated_message = gr.Markdown()
+
+
+                consolidated_table = gr.Dataframe(
+
+                    interactive=False,
+
+                    wrap=True
+
+                )
+
+
+                gr.Markdown(
+                    """
+### 🖨️ Print
+
+After the consolidated mark list appears,
+use **Ctrl + P** in your browser to print it.
+"""
+                )
+
+
+                consolidated_button.click(
+
+                    generate_consolidated_report,
+
+                    inputs=[
+
+                        list_year,
+
+                        list_class,
+
+                        list_exam
+
+                    ],
+
+                    outputs=[
+
+                        consolidated_message,
+
+                        consolidated_table
+
+                    ]
+
+                )
+
+
+    # ======================================================
+    # LOGIN EVENT
+    # ======================================================
+
     login_button.click(
+
         login,
+
         inputs=[
+
             username,
+
             password
+
         ],
+
         outputs=[
+
             login_message,
+
             application
+
         ]
+
     )
 
+
+    # ======================================================
+    # INITIAL LOGIN INFORMATION
+    # ======================================================
 
     gr.Markdown(
-        "**Initial Login:** admin / Admin@123"
+        "**Initial Login:** `admin` / `Admin@123`"
     )
 
 
@@ -1631,7 +2566,11 @@ if __name__ == "__main__":
         )
     )
 
+
     demo.launch(
+
         server_name="0.0.0.0",
+
         server_port=port
+
     )

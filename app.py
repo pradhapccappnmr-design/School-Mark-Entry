@@ -1242,50 +1242,364 @@ with gr.Blocks(
                 )
 
 
-            # ==================================================
-            # MARK LIST
-            # ==================================================
+          # ==========================================================
+# CONSOLIDATED MARK LIST / PRINT
+# ==========================================================
 
-            with gr.Tab(
-                "📊 Mark List / Print"
-            ):
+def get_all_exams():
 
-                gr.Markdown(
-                    "## Consolidated Mark List"
+    db = SessionLocal()
+
+    try:
+
+        exams = (
+            db.query(Exam)
+            .filter(Exam.active == True)
+            .order_by(Exam.id)
+            .all()
+        )
+
+        choices = [
+            "ALL | All Exams"
+        ]
+
+        choices.extend([
+            f"{exam.id} | {exam.name}"
+            for exam in exams
+        ])
+
+        return choices
+
+    finally:
+
+        db.close()
+
+
+def generate_consolidated_report(
+    year_value,
+    class_value,
+    exam_value
+):
+
+    year_id = parse_id(year_value)
+    class_id = parse_id(class_value)
+
+    if not year_id:
+        return "❌ Please select Academic Year.", []
+
+    if not class_id:
+        return "❌ Please select Class.", []
+
+    if not exam_value:
+        return "❌ Please select Exam.", []
+
+    db = SessionLocal()
+
+    try:
+
+        # --------------------------------------------------
+        # Class
+        # --------------------------------------------------
+
+        class_obj = db.query(
+            ClassSection
+        ).filter(
+            ClassSection.id == class_id
+        ).first()
+
+        if class_obj is None:
+            return "❌ Class not found.", []
+
+        # --------------------------------------------------
+        # Students
+        # --------------------------------------------------
+
+        students = (
+            db.query(Student)
+            .filter(
+                Student.class_id == class_id,
+                Student.active == True
+            )
+            .order_by(
+                Student.roll_no,
+                Student.name
+            )
+            .all()
+        )
+
+        if not students:
+            return (
+                "❌ No students found in this class.",
+                []
+            )
+
+        # --------------------------------------------------
+        # Subjects
+        # --------------------------------------------------
+
+        subjects = (
+            db.query(Subject)
+            .join(
+                ClassSubject,
+                ClassSubject.subject_id == Subject.id
+            )
+            .filter(
+                ClassSubject.class_id == class_id,
+                Subject.active == True
+            )
+            .order_by(
+                Subject.name
+            )
+            .all()
+        )
+
+        if not subjects:
+
+            return (
+                "❌ No subjects found for this class.",
+                []
+            )
+
+        # --------------------------------------------------
+        # Exams
+        # --------------------------------------------------
+
+        if str(exam_value).startswith("ALL"):
+
+            exams = (
+                db.query(Exam)
+                .filter(
+                    Exam.active == True
+                )
+                .order_by(
+                    Exam.id
+                )
+                .all()
+            )
+
+        else:
+
+            exam_id = parse_id(
+                exam_value
+            )
+
+            exam_obj = db.query(
+                Exam
+            ).filter(
+                Exam.id == exam_id
+            ).first()
+
+            if exam_obj is None:
+
+                return (
+                    "❌ Exam not found.",
+                    []
                 )
 
-                gr.Markdown(
-                    "Select Academic Year, Exam and Class."
+            exams = [exam_obj]
+
+        # --------------------------------------------------
+        # Table Header
+        # --------------------------------------------------
+
+        headers = [
+            "Roll No",
+            "Student Name"
+        ]
+
+        for exam in exams:
+
+            for subject in subjects:
+
+                headers.append(
+                    f"{exam.name} - {subject.name} Theory"
                 )
 
-                with gr.Row():
+                if subject.practical:
 
-                    list_year = gr.Dropdown(
-                        choices=get_years(),
-                        label="Academic Year"
+                    headers.append(
+                        f"{exam.name} - {subject.name} Practical"
                     )
 
-                    list_exam = gr.Dropdown(
-                        choices=get_exams(),
-                        label="Exam"
+                if subject.internal:
+
+                    headers.append(
+                        f"{exam.name} - {subject.name} Internal"
                     )
 
-                    list_class = gr.Dropdown(
-                        choices=get_classes(),
-                        label="Class"
+                headers.append(
+                    f"{exam.name} - {subject.name} Total"
+                )
+
+            headers.append(
+                f"{exam.name} Grand Total"
+            )
+
+        # --------------------------------------------------
+        # Data Rows
+        # --------------------------------------------------
+
+        report_rows = []
+
+        for student in students:
+
+            row = [
+                student.roll_no or "",
+                student.name
+            ]
+
+            overall_total = 0
+
+            for exam in exams:
+
+                exam_total = 0
+
+                for subject in subjects:
+
+                    mark = db.query(
+                        Mark
+                    ).filter_by(
+                        academic_year_id=year_id,
+                        exam_id=exam.id,
+                        student_id=student.id,
+                        subject_id=subject.id
+                    ).first()
+
+                    theory = (
+                        mark.theory
+                        if mark else 0
                     )
 
-                gr.Markdown(
-                    "Students and subjects will appear after "
-                    "the mark list is connected to the database."
+                    practical = (
+                        mark.practical
+                        if mark else 0
+                    )
+
+                    internal = (
+                        mark.internal
+                        if mark else 0
+                    )
+
+                    total = (
+                        theory +
+                        practical +
+                        internal
+                    )
+
+                    row.append(theory)
+
+                    if subject.practical:
+
+                        row.append(
+                            practical
+                        )
+
+                    if subject.internal:
+
+                        row.append(
+                            internal
+                        )
+
+                    row.append(
+                        total
+                    )
+
+                    exam_total += total
+
+                row.append(
+                    exam_total
                 )
 
-                gr.Markdown(
-                    "🖨️ Use the browser Print option "
-                    "(Ctrl + P) to print."
-                )
+                overall_total += exam_total
+
+            report_rows.append(row)
+
+        # --------------------------------------------------
+        # Final Message
+        # --------------------------------------------------
+
+        message = (
+            f"### 📊 Consolidated Mark List\n\n"
+            f"**Academic Year:** "
+            f"{year_value.split('|', 1)[1].strip()}\n\n"
+            f"**Class:** {class_obj.name}\n\n"
+            f"**Students:** {len(students)}\n\n"
+            f"**Subjects:** {len(subjects)}\n\n"
+            f"**Exams:** "
+            f"{', '.join(exam.name for exam in exams)}"
+        )
+
+        return message, [
+            headers
+        ] + report_rows
 
 
+# ==========================================================
+# CONSOLIDATED REPORT UI
+# ==========================================================
+
+with gr.Tab(
+    "📊 Mark List / Print"
+):
+
+    gr.Markdown(
+        "## 📊 Consolidated Mark List"
+    )
+
+    gr.Markdown(
+        "Select Academic Year, Class and Exam."
+    )
+
+    with gr.Row():
+
+        list_year = gr.Dropdown(
+            choices=get_years(),
+            label="Academic Year",
+            interactive=True
+        )
+
+        list_class = gr.Dropdown(
+            choices=get_classes(),
+            label="Class",
+            interactive=True
+        )
+
+        list_exam = gr.Dropdown(
+            choices=get_all_exams(),
+            label="Exam",
+            interactive=True
+        )
+
+    consolidated_button = gr.Button(
+        "📋 View Consolidated Mark List",
+        variant="primary"
+    )
+
+    consolidated_message = gr.Markdown()
+
+    consolidated_table = gr.Dataframe(
+        headers=[],
+        interactive=False,
+        wrap=True
+    )
+
+    print_message = gr.Markdown(
+        "🖨️ To print this report, use **Ctrl + P** "
+        "in your browser."
+    )
+
+    consolidated_button.click(
+        generate_consolidated_report,
+        inputs=[
+            list_year,
+            list_class,
+            list_exam
+        ],
+        outputs=[
+            consolidated_message,
+            consolidated_table
+        ]
+    )
     login_button.click(
         login,
         inputs=[

@@ -616,6 +616,8 @@ def seed_database():
 
         all_subjects = db.query(
             Subject
+        ).filter(
+            Subject.active == True
         ).all()
 
 
@@ -659,6 +661,7 @@ seed_database()
 def parse_id(value):
 
     if not value:
+
         return None
 
     try:
@@ -674,11 +677,69 @@ def parse_id(value):
         return None
 
 
+def clean_name(value):
+
+    return (
+        str(value or "")
+        .strip()
+    )
+
+
+def safe_int(value, default=0):
+
+    try:
+
+        if value in [
+            None,
+            ""
+        ]:
+
+            return default
+
+        return int(
+            float(value)
+        )
+
+    except Exception:
+
+        return default
+
+
 # ==========================================================
 # GET CLASSES
 # ==========================================================
 
 def get_classes():
+
+    db = SessionLocal()
+
+    try:
+
+        rows = (
+            db.query(
+                ClassSection
+            )
+            .order_by(
+                ClassSection.name
+            )
+            .all()
+        )
+
+        return [
+            f"{x.id} | {x.name}"
+            for x in rows
+        ]
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# GET ACTIVE CLASSES
+# ==========================================================
+
+def get_active_classes():
 
     db = SessionLocal()
 
@@ -933,18 +994,17 @@ def add_student(
     class_value
 ):
 
-    admission_no = (
-        admission_no or ""
-    ).strip()
+    admission_no = clean_name(
+        admission_no
+    )
 
-    roll_no = (
-        roll_no or ""
-    ).strip()
+    roll_no = clean_name(
+        roll_no
+    )
 
-    student_name = (
-        student_name or ""
-    ).strip()
-
+    student_name = clean_name(
+        student_name
+    )
 
     class_id = parse_id(
         class_value
@@ -990,6 +1050,20 @@ def add_student(
 
         if old_student:
 
+            if not old_student.active:
+
+                old_student.active = True
+                old_student.roll_no = roll_no
+                old_student.name = student_name
+                old_student.class_id = class_id
+
+                db.commit()
+
+                return (
+                    "✅ Student restored successfully.",
+                    get_student_list()
+                )
+
             return (
                 "❌ This Admission No already exists.",
                 get_student_list()
@@ -1031,6 +1105,1112 @@ def add_student(
         return (
             "❌ Error: " + str(e),
             get_student_list()
+        )
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# DELETE STUDENT
+# ==========================================================
+
+def delete_student(
+    student_value
+):
+
+    student_id = parse_id(
+        student_value
+    )
+
+    if not student_id:
+
+        return (
+            "❌ Please select a Student.",
+            get_student_list()
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        student = db.get(
+            Student,
+            student_id
+        )
+
+
+        if student is None:
+
+            return (
+                "❌ Student not found.",
+                get_student_list()
+            )
+
+
+        student.active = False
+
+        db.commit()
+
+
+        return (
+            "✅ Student deleted successfully. "
+            "Existing marks are preserved.",
+            get_student_list()
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_student_list()
+        )
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# YEAR LIST
+# ==========================================================
+
+def get_year_list():
+
+    db = SessionLocal()
+
+    try:
+
+        rows = (
+            db.query(
+                AcademicYear
+            )
+            .order_by(
+                AcademicYear.name
+            )
+            .all()
+        )
+
+        return [
+            [
+                x.id,
+                x.name,
+                "Active" if x.active else "Deleted"
+            ]
+            for x in rows
+        ]
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# ADD ACADEMIC YEAR
+# ==========================================================
+
+def add_academic_year(
+    year_name
+):
+
+    year_name = clean_name(
+        year_name
+    )
+
+
+    if not year_name:
+
+        return (
+            "❌ Academic Year is required.",
+            get_year_list(),
+            gr.update(
+                choices=get_years()
+            )
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        existing = (
+            db.query(
+                AcademicYear
+            )
+            .filter(
+                AcademicYear.name == year_name
+            )
+            .first()
+        )
+
+
+        if existing:
+
+            if not existing.active:
+
+                existing.active = True
+
+                db.commit()
+
+                return (
+                    "✅ Academic Year restored.",
+                    get_year_list(),
+                    gr.update(
+                        choices=get_years()
+                    )
+                )
+
+
+            return (
+                "❌ Academic Year already exists.",
+                get_year_list(),
+                gr.update(
+                    choices=get_years()
+                )
+            )
+
+
+        db.add(
+            AcademicYear(
+                name=year_name,
+                active=True
+            )
+        )
+
+        db.commit()
+
+
+        return (
+            "✅ Academic Year added successfully.",
+            get_year_list(),
+            gr.update(
+                choices=get_years()
+            )
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_year_list(),
+            gr.update(
+                choices=get_years()
+            )
+        )
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# DELETE ACADEMIC YEAR
+# ==========================================================
+
+def delete_academic_year(
+    year_value
+):
+
+    year_id = parse_id(
+        year_value
+    )
+
+
+    if not year_id:
+
+        return (
+            "❌ Please select an Academic Year.",
+            get_year_list(),
+            gr.update(
+                choices=get_years()
+            )
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        year = db.get(
+            AcademicYear,
+            year_id
+        )
+
+
+        if year is None:
+
+            return (
+                "❌ Academic Year not found.",
+                get_year_list(),
+                gr.update(
+                    choices=get_years()
+                )
+            )
+
+
+        year.active = False
+
+        db.commit()
+
+
+        return (
+            "✅ Academic Year deleted. Existing marks are preserved.",
+            get_year_list(),
+            gr.update(
+                choices=get_years()
+            )
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_year_list(),
+            gr.update(
+                choices=get_years()
+            )
+        )
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# CLASS LIST
+# ==========================================================
+
+def get_class_list():
+
+    db = SessionLocal()
+
+    try:
+
+        rows = (
+            db.query(
+                ClassSection
+            )
+            .order_by(
+                ClassSection.name
+            )
+            .all()
+        )
+
+        return [
+            [
+                x.id,
+                x.name
+            ]
+            for x in rows
+        ]
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# ADD CLASS
+# ==========================================================
+
+def add_class(
+    class_name
+):
+
+    class_name = clean_name(
+        class_name
+    )
+
+
+    if not class_name:
+
+        return (
+            "❌ Class name is required.",
+            get_class_list(),
+            gr.update(
+                choices=get_classes()
+            )
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        existing = (
+            db.query(
+                ClassSection
+            )
+            .filter(
+                ClassSection.name == class_name
+            )
+            .first()
+        )
+
+
+        if existing:
+
+            return (
+                "❌ Class already exists.",
+                get_class_list(),
+                gr.update(
+                    choices=get_classes()
+                )
+            )
+
+
+        new_class = ClassSection(
+            name=class_name
+        )
+
+        db.add(
+            new_class
+        )
+
+        db.flush()
+
+
+        subjects = (
+            db.query(
+                Subject
+            )
+            .filter(
+                Subject.active == True
+            )
+            .all()
+        )
+
+
+        for subject in subjects:
+
+            db.add(
+                ClassSubject(
+                    class_id=new_class.id,
+                    subject_id=subject.id
+                )
+            )
+
+
+        db.commit()
+
+
+        return (
+            "✅ Class added successfully.",
+            get_class_list(),
+            gr.update(
+                choices=get_classes()
+            )
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_class_list(),
+            gr.update(
+                choices=get_classes()
+            )
+        )
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# DELETE CLASS
+# ==========================================================
+
+def delete_class(
+    class_value
+):
+
+    class_id = parse_id(
+        class_value
+    )
+
+
+    if not class_id:
+
+        return (
+            "❌ Please select a Class.",
+            get_class_list(),
+            gr.update(
+                choices=get_classes()
+            )
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        cls = db.get(
+            ClassSection,
+            class_id
+        )
+
+
+        if cls is None:
+
+            return (
+                "❌ Class not found.",
+                get_class_list(),
+                gr.update(
+                    choices=get_classes()
+                )
+            )
+
+
+        student_count = (
+            db.query(Student)
+            .filter(
+                Student.class_id == class_id,
+                Student.active == True
+            )
+            .count()
+        )
+
+
+        if student_count > 0:
+
+            return (
+                "❌ Cannot delete this Class because it "
+                "still has active students.",
+                get_class_list(),
+                gr.update(
+                    choices=get_classes()
+                )
+            )
+
+
+        db.query(
+            ClassSubject
+        ).filter(
+            ClassSubject.class_id == class_id
+        ).delete(
+            synchronize_session=False
+        )
+
+
+        db.delete(
+            cls
+        )
+
+        db.commit()
+
+
+        return (
+            "✅ Class deleted successfully.",
+            get_class_list(),
+            gr.update(
+                choices=get_classes()
+            )
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_class_list(),
+            gr.update(
+                choices=get_classes()
+            )
+        )
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# SUBJECT LIST
+# ==========================================================
+
+def get_subject_list():
+
+    db = SessionLocal()
+
+    try:
+
+        subjects = (
+            db.query(
+                Subject
+            )
+            .order_by(
+                Subject.name
+            )
+            .all()
+        )
+
+
+        result = []
+
+
+        for subject in subjects:
+
+            components = []
+
+
+            if subject.theory:
+                components.append(
+                    f"Theory ({subject.theory_max})"
+                )
+
+            if subject.practical:
+                components.append(
+                    f"Practical ({subject.practical_max})"
+                )
+
+            if subject.internal:
+                components.append(
+                    f"Internal ({subject.internal_max})"
+                )
+
+
+            result.append([
+
+                subject.id,
+
+                subject.name,
+
+                subject.code,
+
+                " + ".join(components),
+
+                "Active"
+                if subject.active
+                else "Deleted"
+
+            ])
+
+
+        return result
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# ADD SUBJECT
+# ==========================================================
+
+def add_subject(
+    subject_name,
+    subject_code,
+    theory,
+    practical,
+    internal,
+    theory_max,
+    practical_max,
+    internal_max
+):
+
+    subject_name = clean_name(
+        subject_name
+    )
+
+    subject_code = clean_name(
+        subject_code
+    ).upper()
+
+
+    if not subject_name:
+
+        return (
+            "❌ Subject name is required.",
+            get_subject_list(),
+            gr.update(
+                choices=get_subjects_for_class(
+                    None
+                ).get("choices", [])
+                if False else []
+            )
+        )
+
+
+    if not subject_code:
+
+        return (
+            "❌ Subject code is required.",
+            get_subject_list(),
+            gr.update(
+                choices=[]
+            )
+        )
+
+
+    if not theory and not practical and not internal:
+
+        return (
+            "❌ Select at least one component.",
+            get_subject_list(),
+            gr.update(
+                choices=[]
+            )
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        existing = (
+            db.query(
+                Subject
+            )
+            .filter(
+                Subject.code == subject_code
+            )
+            .first()
+        )
+
+
+        if existing:
+
+            if not existing.active:
+
+                existing.active = True
+                existing.name = subject_name
+                existing.theory = bool(theory)
+                existing.practical = bool(practical)
+                existing.internal = bool(internal)
+                existing.theory_max = safe_int(
+                    theory_max
+                )
+                existing.practical_max = safe_int(
+                    practical_max
+                )
+                existing.internal_max = safe_int(
+                    internal_max
+                )
+
+                subject_id = existing.id
+
+            else:
+
+                return (
+                    "❌ Subject code already exists.",
+                    get_subject_list(),
+                    gr.update(
+                        choices=[]
+                    )
+                )
+
+        else:
+
+            subject = Subject(
+
+                name=subject_name,
+
+                code=subject_code,
+
+                theory=bool(theory),
+
+                practical=bool(practical),
+
+                internal=bool(internal),
+
+                theory_max=safe_int(
+                    theory_max
+                ),
+
+                practical_max=safe_int(
+                    practical_max
+                ),
+
+                internal_max=safe_int(
+                    internal_max
+                ),
+
+                active=True
+
+            )
+
+            db.add(
+                subject
+            )
+
+            db.flush()
+
+            subject_id = subject.id
+
+
+        classes = (
+            db.query(
+                ClassSection
+            )
+            .all()
+        )
+
+
+        for cls in classes:
+
+            exists = (
+                db.query(
+                    ClassSubject
+                )
+                .filter_by(
+                    class_id=cls.id,
+                    subject_id=subject_id
+                )
+                .first()
+            )
+
+
+            if not exists:
+
+                db.add(
+                    ClassSubject(
+                        class_id=cls.id,
+                        subject_id=subject_id
+                    )
+                )
+
+
+        db.commit()
+
+
+        return (
+            "✅ Subject added successfully.",
+            get_subject_list(),
+            gr.update(
+                choices=[]
+            )
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_subject_list(),
+            gr.update(
+                choices=[]
+            )
+        )
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# DELETE SUBJECT
+# ==========================================================
+
+def delete_subject(
+    subject_value
+):
+
+    subject_id = parse_id(
+        subject_value
+    )
+
+
+    if not subject_id:
+
+        return (
+            "❌ Please select a Subject.",
+            get_subject_list(),
+            gr.update(
+                choices=[]
+            )
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        subject = db.get(
+            Subject,
+            subject_id
+        )
+
+
+        if subject is None:
+
+            return (
+                "❌ Subject not found.",
+                get_subject_list(),
+                gr.update(
+                    choices=[]
+                )
+            )
+
+
+        subject.active = False
+
+        db.commit()
+
+
+        return (
+            "✅ Subject deleted. Existing marks are preserved.",
+            get_subject_list(),
+            gr.update(
+                choices=[]
+            )
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_subject_list(),
+            gr.update(
+                choices=[]
+            )
+        )
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# EXAM LIST
+# ==========================================================
+
+def get_exam_list():
+
+    db = SessionLocal()
+
+    try:
+
+        exams = (
+            db.query(
+                Exam
+            )
+            .order_by(
+                Exam.id
+            )
+            .all()
+        )
+
+
+        return [
+
+            [
+                exam.id,
+                exam.name,
+                "Active"
+                if exam.active
+                else "Deleted"
+            ]
+
+            for exam in exams
+
+        ]
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# ADD EXAM
+# ==========================================================
+
+def add_exam(
+    exam_name
+):
+
+    exam_name = clean_name(
+        exam_name
+    )
+
+
+    if not exam_name:
+
+        return (
+            "❌ Exam name is required.",
+            get_exam_list(),
+            gr.update(
+                choices=get_exams()
+            )
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        existing = (
+            db.query(
+                Exam
+            )
+            .filter(
+                Exam.name == exam_name
+            )
+            .first()
+        )
+
+
+        if existing:
+
+            if not existing.active:
+
+                existing.active = True
+
+                db.commit()
+
+                return (
+                    "✅ Exam restored successfully.",
+                    get_exam_list(),
+                    gr.update(
+                        choices=get_exams()
+                    )
+                )
+
+
+            return (
+                "❌ Exam already exists.",
+                get_exam_list(),
+                gr.update(
+                    choices=get_exams()
+                )
+            )
+
+
+        db.add(
+            Exam(
+                name=exam_name,
+                active=True
+            )
+        )
+
+        db.commit()
+
+
+        return (
+            "✅ Exam added successfully.",
+            get_exam_list(),
+            gr.update(
+                choices=get_exams()
+            )
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_exam_list(),
+            gr.update(
+                choices=get_exams()
+            )
+        )
+
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# DELETE EXAM
+# ==========================================================
+
+def delete_exam(
+    exam_value
+):
+
+    exam_id = parse_id(
+        exam_value
+    )
+
+
+    if not exam_id:
+
+        return (
+            "❌ Please select an Exam.",
+            get_exam_list(),
+            gr.update(
+                choices=get_exams()
+            )
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        exam = db.get(
+            Exam,
+            exam_id
+        )
+
+
+        if exam is None:
+
+            return (
+                "❌ Exam not found.",
+                get_exam_list(),
+                gr.update(
+                    choices=get_exams()
+                )
+            )
+
+
+        exam.active = False
+
+        db.commit()
+
+
+        return (
+            "✅ Exam deleted. Existing marks are preserved.",
+            get_exam_list(),
+            gr.update(
+                choices=get_exams()
+            )
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_exam_list(),
+            gr.update(
+                choices=get_exams()
+            )
         )
 
 
@@ -1090,7 +2270,7 @@ def load_marks(
         )
 
 
-        if subject is None:
+        if subject is None or not subject.active:
 
             return (
                 [],
@@ -1117,9 +2297,15 @@ def load_marks(
         headers = [
             "ID",
             "Roll No",
-            "Student Name",
-            "Theory"
+            "Student Name"
         ]
+
+
+        if subject.theory:
+
+            headers.append(
+                "Theory"
+            )
 
 
         if subject.practical:
@@ -1189,9 +2375,15 @@ def load_marks(
             row = [
                 student.id,
                 student.roll_no or "",
-                student.name,
-                theory
+                student.name
             ]
+
+
+            if subject.theory:
+
+                row.append(
+                    theory
+                )
 
 
             if subject.practical:
@@ -1323,7 +2515,8 @@ def save_marks(
                 Subject
             )
             .filter(
-                Subject.id == subject_id
+                Subject.id == subject_id,
+                Subject.active == True
             )
             .first()
         )
@@ -1367,7 +2560,7 @@ def save_marks(
                 continue
 
 
-            if len(row) < 4:
+            if len(row) < 3:
 
                 continue
 
@@ -1383,55 +2576,58 @@ def save_marks(
                 continue
 
 
+            student = (
+                db.query(
+                    Student
+                )
+                .filter(
+                    Student.id == student_id,
+                    Student.class_id == class_id,
+                    Student.active == True
+                )
+                .first()
+            )
+
+
+            if student is None:
+
+                continue
+
+
             position = 3
+
+
+            theory = 0
+            practical = 0
+            internal = 0
 
 
             # --------------------------------------------------
             # Theory
             # --------------------------------------------------
 
-            theory = 0
+            if subject.theory:
 
+                if len(row) > position:
 
-            if len(row) > position:
-
-                if row[position] not in [
-                    None,
-                    ""
-                ]:
-
-                    theory = int(
-                        float(
-                            row[position]
-                        )
+                    theory = safe_int(
+                        row[position]
                     )
 
-
-            position += 1
+                position += 1
 
 
             # --------------------------------------------------
             # Practical
             # --------------------------------------------------
 
-            practical = 0
-
-
             if subject.practical:
 
                 if len(row) > position:
 
-                    if row[position] not in [
-                        None,
-                        ""
-                    ]:
-
-                        practical = int(
-                            float(
-                                row[position]
-                            )
-                        )
-
+                    practical = safe_int(
+                        row[position]
+                    )
 
                 position += 1
 
@@ -1440,31 +2636,16 @@ def save_marks(
             # Internal
             # --------------------------------------------------
 
-            internal = 0
-
-
             if subject.internal:
 
                 if len(row) > position:
 
-                    if row[position] not in [
-                        None,
-                        ""
-                    ]:
-
-                        internal = int(
-                            float(
-                                row[position]
-                            )
-                        )
-
+                    internal = safe_int(
+                        row[position]
+                    )
 
                 position += 1
 
-
-            # --------------------------------------------------
-            # Total
-            # --------------------------------------------------
 
             total = (
                 theory +
@@ -1508,10 +2689,6 @@ def save_marks(
                 )
 
 
-            # --------------------------------------------------
-            # Save
-            # --------------------------------------------------
-
             mark.theory = theory
 
             mark.practical = practical
@@ -1529,8 +2706,7 @@ def save_marks(
         if saved_count == 0:
 
             return (
-                "❌ No valid student rows found. "
-                "Please click Load Students again."
+                "❌ No valid student rows found."
             )
 
 
@@ -1560,6 +2736,19 @@ def save_marks(
 
 # ==========================================================
 # CONSOLIDATED MARK LIST
+#
+# IMPORTANT:
+# Instead of creating headers like:
+# Quarterly - Chemistry Theory
+# Quarterly - Chemistry Practical
+#
+# this version creates a clean report:
+#
+# Roll No | Student | Subject | Exam |
+# Theory | Practical | Internal | Total
+#
+# So Chemistry and Quarterly are shown only once
+# in their own columns.
 # ==========================================================
 
 def generate_consolidated_report(
@@ -1721,7 +2910,8 @@ def generate_consolidated_report(
                     Exam
                 )
                 .filter(
-                    Exam.id == exam_id
+                    Exam.id == exam_id,
+                    Exam.active == True
                 )
                 .first()
             )
@@ -1749,56 +2939,7 @@ def generate_consolidated_report(
 
 
         # --------------------------------------------------
-        # TABLE HEADERS
-        # --------------------------------------------------
-
-        headers = [
-            "Roll No",
-            "Student Name"
-        ]
-
-
-        for exam in exams:
-
-            for subject in subjects:
-
-                if subject.theory:
-
-                    headers.append(
-                        f"{exam.name} - "
-                        f"{subject.name} Theory"
-                    )
-
-
-                if subject.practical:
-
-                    headers.append(
-                        f"{exam.name} - "
-                        f"{subject.name} Practical"
-                    )
-
-
-                if subject.internal:
-
-                    headers.append(
-                        f"{exam.name} - "
-                        f"{subject.name} Internal"
-                    )
-
-
-                headers.append(
-                    f"{exam.name} - "
-                    f"{subject.name} Total"
-                )
-
-
-            headers.append(
-                f"{exam.name} Grand Total"
-            )
-
-
-        # --------------------------------------------------
-        # DATA ROWS
+        # REPORT ROWS
         # --------------------------------------------------
 
         report_rows = []
@@ -1806,21 +2947,12 @@ def generate_consolidated_report(
 
         for student in students:
 
-            row = [
-
-                student.roll_no or "",
-
-                student.name
-
-            ]
+            student_grand_total = 0
 
 
-            for exam in exams:
+            for subject in subjects:
 
-                exam_total = 0
-
-
-                for subject in subjects:
+                for exam in exams:
 
                     mark = (
                         db.query(Mark)
@@ -1862,43 +2994,75 @@ def generate_consolidated_report(
                     )
 
 
-                    if subject.theory:
+                    student_grand_total += total
 
-                        row.append(
+
+                    report_rows.append({
+
+                        "Roll No":
+                            student.roll_no or "",
+
+                        "Student Name":
+                            student.name,
+
+                        "Subject":
+                            subject.name,
+
+                        "Exam":
+                            exam.name,
+
+                        "Theory":
                             theory
-                        )
+                            if subject.theory
+                            else "",
 
-
-                    if subject.practical:
-
-                        row.append(
+                        "Practical":
                             practical
-                        )
+                            if subject.practical
+                            else "",
 
-
-                    if subject.internal:
-
-                        row.append(
+                        "Internal":
                             internal
-                        )
+                            if subject.internal
+                            else "",
+
+                        "Subject Total":
+                            total
+
+                    })
 
 
-                    row.append(
-                        total
-                    )
+            # --------------------------------------------------
+            # Grand Total row
+            # --------------------------------------------------
 
+            report_rows.append({
 
-                    exam_total += total
+                "Roll No":
+                    student.roll_no or "",
 
+                "Student Name":
+                    student.name,
 
-                row.append(
-                    exam_total
-                )
+                "Subject":
+                    "TOTAL",
 
+                "Exam":
+                    "",
 
-            report_rows.append(
-                row
-            )
+                "Theory":
+                    "",
+
+                "Practical":
+                    "",
+
+                "Internal":
+                    "",
+
+                "Subject Total":
+                    student_grand_total
+
+            })
 
 
         # --------------------------------------------------
@@ -1907,7 +3071,16 @@ def generate_consolidated_report(
 
         report_df = pd.DataFrame(
             report_rows,
-            columns=headers
+            columns=[
+                "Roll No",
+                "Student Name",
+                "Subject",
+                "Exam",
+                "Theory",
+                "Practical",
+                "Internal",
+                "Subject Total"
+            ]
         )
 
 
@@ -1947,7 +3120,12 @@ def generate_consolidated_report(
             f"{len(subjects)}\n\n"
 
             f"**Exams:** "
-            f"{exam_names}"
+            f"{exam_names}\n\n"
+
+            "#### 📌 Report Format\n\n"
+
+            "Each row clearly separates "
+            "**Subject → Exam → Theory / Practical / Internal → Total**."
 
         )
 
@@ -2108,6 +3286,281 @@ with gr.Blocks(
 
 
             # ==================================================
+            # MASTER DATA MANAGEMENT
+            # ==================================================
+
+            with gr.Tab(
+                "⚙️ Master Data"
+            ):
+
+                gr.Markdown(
+                    "## ⚙️ Master Data Management"
+                )
+
+                gr.Markdown(
+                    """
+இந்த பகுதியில் **Academic Year, Class, Subject, Exam**
+ஆகியவற்றை Add / Delete செய்யலாம்.
+
+Delete செய்தாலும் பழைய marks data பாதுகாப்பாக இருக்கும்.
+"""
+                )
+
+
+                # ==================================================
+                # ACADEMIC YEAR
+                # ==================================================
+
+                gr.Markdown(
+                    "### 📅 Academic Year"
+                )
+
+                with gr.Row():
+
+                    academic_year_name = gr.Textbox(
+                        label="Academic Year",
+                        placeholder="Example: 2027-28"
+                    )
+
+                    add_year_button = gr.Button(
+                        "➕ Add Year",
+                        variant="primary"
+                    )
+
+
+                with gr.Row():
+
+                    delete_year_select = gr.Dropdown(
+                        choices=get_years(),
+                        label="Select Year to Delete"
+                    )
+
+                    delete_year_button = gr.Button(
+                        "🗑️ Delete Year",
+                        variant="stop"
+                    )
+
+
+                year_message = gr.Markdown()
+
+
+                year_table = gr.Dataframe(
+
+                    headers=[
+                        "ID",
+                        "Academic Year",
+                        "Status"
+                    ],
+
+                    value=get_year_list(),
+
+                    interactive=False
+
+                )
+
+
+                # ==================================================
+                # CLASS
+                # ==================================================
+
+                gr.Markdown(
+                    "### 🏫 Class"
+                )
+
+                with gr.Row():
+
+                    class_name_input = gr.Textbox(
+                        label="Class Name",
+                        placeholder="Example: 12-C"
+                    )
+
+                    add_class_button = gr.Button(
+                        "➕ Add Class",
+                        variant="primary"
+                    )
+
+
+                with gr.Row():
+
+                    delete_class_select = gr.Dropdown(
+                        choices=get_classes(),
+                        label="Select Class to Delete"
+                    )
+
+                    delete_class_button = gr.Button(
+                        "🗑️ Delete Class",
+                        variant="stop"
+                    )
+
+
+                class_message = gr.Markdown()
+
+
+                class_table = gr.Dataframe(
+
+                    headers=[
+                        "ID",
+                        "Class"
+                    ],
+
+                    value=get_class_list(),
+
+                    interactive=False
+
+                )
+
+
+                # ==================================================
+                # SUBJECT
+                # ==================================================
+
+                gr.Markdown(
+                    "### 📚 Subject"
+                )
+
+                with gr.Row():
+
+                    subject_name_input = gr.Textbox(
+                        label="Subject Name",
+                        placeholder="Example: Chemistry"
+                    )
+
+                    subject_code_input = gr.Textbox(
+                        label="Subject Code",
+                        placeholder="Example: CHE"
+                    )
+
+
+                with gr.Row():
+
+                    subject_theory = gr.Checkbox(
+                        label="Theory",
+                        value=True
+                    )
+
+                    subject_practical = gr.Checkbox(
+                        label="Practical",
+                        value=False
+                    )
+
+                    subject_internal = gr.Checkbox(
+                        label="Internal",
+                        value=True
+                    )
+
+
+                with gr.Row():
+
+                    subject_theory_max = gr.Number(
+                        label="Theory Maximum",
+                        value=80,
+                        precision=0
+                    )
+
+                    subject_practical_max = gr.Number(
+                        label="Practical Maximum",
+                        value=0,
+                        precision=0
+                    )
+
+                    subject_internal_max = gr.Number(
+                        label="Internal Maximum",
+                        value=20,
+                        precision=0
+                    )
+
+
+                with gr.Row():
+
+                    add_subject_button = gr.Button(
+                        "➕ Add Subject",
+                        variant="primary"
+                    )
+
+                    delete_subject_select = gr.Dropdown(
+                        choices=[],
+                        label="Select Subject to Delete"
+                    )
+
+                    delete_subject_button = gr.Button(
+                        "🗑️ Delete Subject",
+                        variant="stop"
+                    )
+
+
+                subject_message = gr.Markdown()
+
+
+                subject_table = gr.Dataframe(
+
+                    headers=[
+                        "ID",
+                        "Subject",
+                        "Code",
+                        "Components",
+                        "Status"
+                    ],
+
+                    value=get_subject_list(),
+
+                    interactive=False
+
+                )
+
+
+                # ==================================================
+                # EXAM
+                # ==================================================
+
+                gr.Markdown(
+                    "### 📝 Exam"
+                )
+
+                with gr.Row():
+
+                    exam_name_input = gr.Textbox(
+                        label="Exam Name",
+                        placeholder="Example: Monthly Test"
+                    )
+
+                    add_exam_button = gr.Button(
+                        "➕ Add Exam",
+                        variant="primary"
+                    )
+
+
+                with gr.Row():
+
+                    delete_exam_select = gr.Dropdown(
+                        choices=get_exams(),
+                        label="Select Exam to Delete"
+                    )
+
+                    delete_exam_button = gr.Button(
+                        "🗑️ Delete Exam",
+                        variant="stop"
+                    )
+
+
+                exam_message = gr.Markdown()
+
+
+                exam_table = gr.Dataframe(
+
+                    headers=[
+                        "ID",
+                        "Exam",
+                        "Status"
+                    ],
+
+                    value=get_exam_list(),
+
+                    interactive=False
+
+                )
+
+
+            # ==================================================
             # STUDENT MANAGEMENT
             # ==================================================
 
@@ -2143,10 +3596,22 @@ with gr.Blocks(
                     )
 
 
-                add_student_button = gr.Button(
-                    "➕ Add Student",
-                    variant="primary"
-                )
+                with gr.Row():
+
+                    add_student_button = gr.Button(
+                        "➕ Add Student",
+                        variant="primary"
+                    )
+
+                    delete_student_select = gr.Dropdown(
+                        choices=[],
+                        label="Select Student to Delete"
+                    )
+
+                    delete_student_button = gr.Button(
+                        "🗑️ Delete Student",
+                        variant="stop"
+                    )
 
 
                 student_message = gr.Markdown()
@@ -2169,6 +3634,21 @@ with gr.Blocks(
                 )
 
 
+                # --------------------------------------------------
+                # Refresh student delete dropdown
+                # --------------------------------------------------
+
+                student_table.change(
+                    lambda: gr.update(
+                        choices=[
+                            f"{row[0]} | {row[3]}"
+                            for row in get_student_list()
+                        ]
+                    ),
+                    outputs=delete_student_select
+                )
+
+
                 add_student_button.click(
 
                     add_student,
@@ -2184,6 +3664,23 @@ with gr.Blocks(
                         student_class
 
                     ],
+
+                    outputs=[
+
+                        student_message,
+
+                        student_table
+
+                    ]
+
+                )
+
+
+                delete_student_button.click(
+
+                    delete_student,
+
+                    inputs=delete_student_select,
 
                     outputs=[
 
@@ -2422,7 +3919,13 @@ with gr.Blocks(
 
 
                 gr.Markdown(
-                    "Select Academic Year, Class and Exam."
+                    """
+Select **Academic Year + Class + Exam**.
+
+Report format:
+
+**Roll No → Student → Subject → Exam → Theory → Practical → Internal → Total**
+"""
                 )
 
 
@@ -2515,6 +4018,196 @@ use **Ctrl + P** in your browser to print it.
                     ]
 
                 )
+
+
+    # ======================================================
+    # MASTER DATA EVENTS
+    # ======================================================
+
+    # ------------------------------------------------------
+    # YEAR
+    # ------------------------------------------------------
+
+    add_year_button.click(
+
+        add_academic_year,
+
+        inputs=academic_year_name,
+
+        outputs=[
+
+            year_message,
+
+            year_table,
+
+            delete_year_select
+
+        ]
+
+    )
+
+
+    delete_year_button.click(
+
+        delete_academic_year,
+
+        inputs=delete_year_select,
+
+        outputs=[
+
+            year_message,
+
+            year_table,
+
+            delete_year_select
+
+        ]
+
+    )
+
+
+    # ------------------------------------------------------
+    # CLASS
+    # ------------------------------------------------------
+
+    add_class_button.click(
+
+        add_class,
+
+        inputs=class_name_input,
+
+        outputs=[
+
+            class_message,
+
+            class_table,
+
+            delete_class_select
+
+        ]
+
+    )
+
+
+    delete_class_button.click(
+
+        delete_class,
+
+        inputs=delete_class_select,
+
+        outputs=[
+
+            class_message,
+
+            class_table,
+
+            delete_class_select
+
+        ]
+
+    )
+
+
+    # ------------------------------------------------------
+    # SUBJECT
+    # ------------------------------------------------------
+
+    add_subject_button.click(
+
+        add_subject,
+
+        inputs=[
+
+            subject_name_input,
+
+            subject_code_input,
+
+            subject_theory,
+
+            subject_practical,
+
+            subject_internal,
+
+            subject_theory_max,
+
+            subject_practical_max,
+
+            subject_internal_max
+
+        ],
+
+        outputs=[
+
+            subject_message,
+
+            subject_table,
+
+            delete_subject_select
+
+        ]
+
+    )
+
+
+    delete_subject_button.click(
+
+        delete_subject,
+
+        inputs=delete_subject_select,
+
+        outputs=[
+
+            subject_message,
+
+            subject_table,
+
+            delete_subject_select
+
+        ]
+
+    )
+
+
+    # ------------------------------------------------------
+    # EXAM
+    # ------------------------------------------------------
+
+    add_exam_button.click(
+
+        add_exam,
+
+        inputs=exam_name_input,
+
+        outputs=[
+
+            exam_message,
+
+            exam_table,
+
+            delete_exam_select
+
+        ]
+
+    )
+
+
+    delete_exam_button.click(
+
+        delete_exam,
+
+        inputs=delete_exam_select,
+
+        outputs=[
+
+            exam_message,
+
+            exam_table,
+
+            delete_exam_select
+
+        ]
+
+    )
 
 
     # ======================================================

@@ -14,7 +14,8 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
-    UniqueConstraint
+    UniqueConstraint,
+    text
 )
 
 from sqlalchemy.orm import (

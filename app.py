@@ -3989,10 +3989,68 @@ def download_consolidated_excel(
     table_data
 ):
 
-    return dataframe_to_excel(
-        table_data,
-        "consolidated_mark_list",
+    if table_data is None:
+        return None
+
+    try:
+
+        if isinstance(
+            table_data,
+            pd.DataFrame
+        ):
+
+            dataframe = table_data.copy()
+
+        else:
+
+            dataframe = pd.DataFrame(
+                table_data
+            )
+
+    except Exception:
+
+        return None
+
+
+    if dataframe.empty:
+        return None
+
+
+    temp_path = os.path.join(
+        tempfile.gettempdir(),
+        "consolidated_mark_list_"
+        + datetime.now().strftime(
+            "%Y%m%d_%H%M%S"
+        )
+        + ".xlsx"
     )
+
+
+    try:
+
+        with pd.ExcelWriter(
+            temp_path,
+            engine="openpyxl",
+        ) as writer:
+
+            dataframe.to_excel(
+                writer,
+                index=False,
+                sheet_name="Consolidated Marks",
+            )
+
+
+        return temp_path
+
+
+    except Exception as e:
+
+        print(
+            "Excel creation error:",
+            e
+        )
+
+        return None
 
 
 # ==========================================================

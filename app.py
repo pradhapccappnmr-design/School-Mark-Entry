@@ -3425,6 +3425,112 @@ def save_marks(
         db.close()
 
 
+
+# ==========================================================
+# MOBILE MARK ENTRY
+# ==========================================================
+
+
+def save_mobile_marks(
+    class_value,
+    year_value,
+    exam_value,
+    subject_value,
+    *mark_values,
+):
+    """Save marks entered through mobile-friendly Number inputs."""
+
+    class_id = parse_id(class_value)
+    year_id = parse_id(year_value)
+    exam_id = parse_id(exam_value)
+    subject_id = parse_id(subject_value)
+
+    if not class_id:
+        return "❌ Please select Class."
+    if not year_id:
+        return "❌ Please select Academic Year."
+    if not exam_id:
+        return "❌ Please select Exam."
+    if not subject_id:
+        return "❌ Please select Subject."
+
+    db = SessionLocal()
+
+    try:
+        subject = (
+            db.query(Subject)
+            .filter(
+                Subject.id == subject_id,
+                Subject.active == True,
+            )
+            .first()
+        )
+
+        if subject is None:
+            return "❌ Subject not found."
+
+        students = (
+            db.query(Student)
+            .filter(
+                Student.class_id == class_id,
+                Student.active == True,
+            )
+            .order_by(
+                Student.roll_no,
+                Student.name,
+            )
+            .all()
+        )
+
+        components = []
+
+        if subject.theory:
+            components.append("theory")
+        if subject.practical:
+            components.append("practical")
+        if subject.internal:
+            components.append("internal")
+
+        expected = len(students) * len(components)
+
+        if len(mark_values) != expected:
+            return (
+                "❌ Student list changed. "
+                "Please select the Class/Subject again."
+            )
+
+        rows = []
+        position = 0
+
+        for student in students:
+            row = [
+                student.id,
+                student.roll_no or "",
+                student.name,
+            ]
+
+            for _ in components:
+                row.append(safe_int(mark_values[position]))
+                position += 1
+
+            row.append(0)
+            rows.append(row)
+
+        # Reuse the existing, fully validated database save routine.
+        return save_marks(
+            class_value,
+            year_value,
+            exam_value,
+            subject_value,
+            rows,
+        )
+
+    except Exception as e:
+        return "❌ Error while saving marks: " + str(e)
+
+    finally:
+        db.close()
+
 # ==========================================================
 # CONSOLIDATED REPORT
 # ==========================================================
@@ -4061,6 +4167,26 @@ css = """
     max-width: 1450px !important;
 }
 
+.mobile-mark-input input {
+    font-size: 22px !important;
+    min-height: 52px !important;
+    text-align: center !important;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+@media (max-width: 768px) {
+    .gradio-container {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+
+    .mobile-mark-input input {
+        font-size: 24px !important;
+        min-height: 58px !important;
+    }
+}
+
 """
 
 
@@ -4547,7 +4673,7 @@ Teacher accounts can use **Mark Entry, View Marks and Consolidated Report**, but
 
 
             # ==================================================
-            # MARK ENTRY
+            # MARK ENTRY - MOBILE FRIENDLY
             # ==================================================
 
             with gr.Tab(
@@ -4557,7 +4683,6 @@ Teacher accounts can use **Mark Entry, View Marks and Consolidated Report**, but
                 gr.Markdown(
                     "## 📝 Mark Entry"
                 )
-
 
                 with gr.Row():
 
@@ -4581,89 +4706,213 @@ Teacher accounts can use **Mark Entry, View Marks and Consolidated Report**, but
                         label="Subject",
                     )
 
-
                 mark_class.change(
-
                     get_subjects_for_class,
-
                     inputs=mark_class,
-
                     outputs=mark_subject,
-
                 )
 
-
-                mark_pattern = gr.Markdown()
-
-
-                load_button = gr.Button(
-                    "📥 Load Students"
+                gr.Markdown(
+                    "📱 **Mobile Mark Entry:** Tap a mark box and enter the mark using your phone's number keyboard."
                 )
 
-
-                marks_table = gr.Dataframe(
-                    interactive=True
-                )
-
-
-                load_button.click(
-
-                    load_marks,
-
+                @gr.render(
                     inputs=[
-
-                        mark_class,
-
                         mark_year,
-
-                        mark_exam,
-
-                        mark_subject,
-
-                    ],
-
-                    outputs=[
-
-                        marks_table,
-
-                        mark_pattern,
-
-                    ],
-
-                )
-
-
-                save_button = gr.Button(
-                    "💾 Save Marks",
-                    variant="primary",
-                )
-
-
-                save_message = gr.Markdown()
-
-
-                save_button.click(
-
-                    save_marks,
-
-                    inputs=[
-
                         mark_class,
-
-                        mark_year,
-
                         mark_exam,
-
                         mark_subject,
-
-                        marks_table,
-
-                    ],
-
-                    outputs=save_message,
-
+                    ]
                 )
+                def render_mobile_mark_entry(
+                    year_value,
+                    class_value,
+                    exam_value,
+                    subject_value,
+                ):
+                    class_id = parse_id(class_value)
+                    year_id = parse_id(year_value)
+                    exam_id = parse_id(exam_value)
+                    subject_id = parse_id(subject_value)
 
+                    if not class_id:
+                        gr.Markdown("⬆️ Select a **Class** to begin.")
+                        return
+
+                    if not year_id:
+                        gr.Markdown("⬆️ Select **Academic Year**.")
+                        return
+
+                    if not exam_id:
+                        gr.Markdown("⬆️ Select **Exam**.")
+                        return
+
+                    if not subject_id:
+                        gr.Markdown("⬆️ Select **Subject**.")
+                        return
+
+                    db = SessionLocal()
+
+                    try:
+                        subject = db.get(Subject, subject_id)
+
+                        if subject is None or not subject.active:
+                            gr.Markdown("❌ Subject not found.")
+                            return
+
+                        students = (
+                            db.query(Student)
+                            .filter(
+                                Student.class_id == class_id,
+                                Student.active == True,
+                            )
+                            .order_by(
+                                Student.roll_no,
+                                Student.name,
+                            )
+                            .all()
+                        )
+
+                        if not students:
+                            gr.Markdown(
+                                "❌ No active students found in this class."
+                            )
+                            return
+
+                        pattern = []
+
+                        if subject.theory:
+                            pattern.append(
+                                f"Theory: {subject.theory_max}"
+                            )
+
+                        if subject.practical:
+                            pattern.append(
+                                f"Practical: {subject.practical_max}"
+                            )
+
+                        if subject.internal:
+                            pattern.append(
+                                f"Internal: {subject.internal_max}"
+                            )
+
+                        gr.Markdown(
+                            "**Mark Pattern:** "
+                            + " + ".join(pattern)
+                        )
+
+                        gr.Markdown(
+                            "### 👨‍🎓 Enter Marks"
+                        )
+
+                        mark_inputs = []
+
+                        for student in students:
+                            mark = (
+                                db.query(Mark)
+                                .filter_by(
+                                    academic_year_id=year_id,
+                                    exam_id=exam_id,
+                                    student_id=student.id,
+                                    subject_id=subject_id,
+                                )
+                                .first()
+                            )
+
+                            with gr.Group():
+                                gr.Markdown(
+                                    f"**Roll No: {student.roll_no or '-'} — {student.name}**"
+                                )
+
+                                with gr.Row():
+
+                                    if subject.theory:
+                                        theory_value = (
+                                            mark.theory
+                                            if mark
+                                            else 0
+                                        )
+                                        theory_input = gr.Number(
+                                            value=theory_value,
+                                            label=f"Theory / {subject.theory_max}",
+                                            precision=0,
+                                            minimum=0,
+                                            maximum=subject.theory_max,
+                                            step=1,
+                                            interactive=True,
+                                            elem_classes=[
+                                                "mobile-mark-input"
+                                            ],
+                                        )
+                                        mark_inputs.append(
+                                            theory_input
+                                        )
+
+                                    if subject.practical:
+                                        practical_value = (
+                                            mark.practical
+                                            if mark
+                                            else 0
+                                        )
+                                        practical_input = gr.Number(
+                                            value=practical_value,
+                                            label=f"Practical / {subject.practical_max}",
+                                            precision=0,
+                                            minimum=0,
+                                            maximum=subject.practical_max,
+                                            step=1,
+                                            interactive=True,
+                                            elem_classes=[
+                                                "mobile-mark-input"
+                                            ],
+                                        )
+                                        mark_inputs.append(
+                                            practical_input
+                                        )
+
+                                    if subject.internal:
+                                        internal_value = (
+                                            mark.internal
+                                            if mark
+                                            else 0
+                                        )
+                                        internal_input = gr.Number(
+                                            value=internal_value,
+                                            label=f"Internal / {subject.internal_max}",
+                                            precision=0,
+                                            minimum=0,
+                                            maximum=subject.internal_max,
+                                            step=1,
+                                            interactive=True,
+                                            elem_classes=[
+                                                "mobile-mark-input"
+                                            ],
+                                        )
+                                        mark_inputs.append(
+                                            internal_input
+                                        )
+
+                        save_button = gr.Button(
+                            "💾 Save Marks",
+                            variant="primary",
+                        )
+
+                        save_message = gr.Markdown()
+
+                        save_button.click(
+                            save_mobile_marks,
+                            inputs=[
+                                mark_class,
+                                mark_year,
+                                mark_exam,
+                                mark_subject,
+                                *mark_inputs,
+                            ],
+                            outputs=save_message,
+                        )
+
+                    finally:
+                        db.close()
 
             # ==================================================
             # VIEW MARKS

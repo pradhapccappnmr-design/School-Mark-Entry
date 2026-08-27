@@ -15,7 +15,8 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     UniqueConstraint,
-    text
+    text,
+    inspect
 )
 
 from sqlalchemy.orm import (

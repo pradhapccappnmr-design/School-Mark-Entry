@@ -3917,51 +3917,28 @@ def dataframe_to_excel(
 ):
 
     if dataframe is None:
-
         return None
 
-
-    if not isinstance(
-        dataframe,
-        pd.DataFrame
-    ):
-
-        try:
-
-            dataframe = pd.DataFrame(
-                dataframe
-            )
-
-        except Exception:
-
-            return None
-
+    try:
+        if not isinstance(dataframe, pd.DataFrame):
+            dataframe = pd.DataFrame(dataframe)
+    except Exception:
+        return None
 
     if dataframe.empty:
-
         return None
 
-
-    safe_prefix = clean_name(
-        filename_prefix
-    )
-
+    safe_prefix = clean_name(filename_prefix)
 
     if not safe_prefix:
-
         safe_prefix = "school_marks"
 
-
-    temp_file = tempfile.NamedTemporaryFile(
-        suffix=".xlsx",
-        prefix=safe_prefix + "_",
-        delete=False,
+    temp_path = os.path.join(
+        tempfile.gettempdir(),
+        safe_prefix + "_" +
+        datetime.now().strftime("%Y%m%d_%H%M%S") +
+        ".xlsx"
     )
-
-    temp_path = temp_file.name
-
-    temp_file.close()
-
 
     try:
 
@@ -3976,28 +3953,17 @@ def dataframe_to_excel(
                 sheet_name="Marks",
             )
 
-
         return temp_path
-
 
     except Exception:
 
         try:
-
-            if os.path.exists(
-                temp_path
-            ):
-
-                os.remove(
-                    temp_path
-                )
-
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
         except Exception:
-
             pass
 
         return None
-
 
 # ==========================================================
 # VIEW MARKS EXCEL

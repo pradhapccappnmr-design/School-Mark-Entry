@@ -5057,22 +5057,15 @@ The report will show:
                 # --------------------------------------------------
 
                 consolidated_excel_button = gr.DownloadButton(
-
                     "📥 Download Consolidated Excel",
-
                     variant="secondary",
-
-                )
-
+                        interactive=True,
+                    )
 
                 consolidated_excel_button.click(
-
-                    download_consolidated_excel,
-
-                    inputs=consolidated_table,
-
-                    outputs=consolidated_excel_button,
-
+                    fn=download_consolidated_excel,
+                    inputs=[consolidated_table],
+                    outputs=[consolidated_excel_button],
                 )
 
 

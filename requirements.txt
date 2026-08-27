@@ -2,3 +2,4 @@ gradio
 sqlalchemy
 pandas
 psycopg2-binary
+openpyxl

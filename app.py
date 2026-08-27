@@ -1,6 +1,7 @@
 import os
 import hashlib
 import secrets
+import tempfile
 from datetime import datetime
 
 import gradio as gr
@@ -25,7 +26,7 @@ from sqlalchemy.orm import (
 
 # ==========================================================
 # SCHOOL MARK ENTRY SYSTEM
-# FINAL CLEAN VERSION
+# ADMIN + TEACHER + STUDENT + EXCEL VERSION
 # ==========================================================
 
 
@@ -381,8 +382,8 @@ def hash_password(password):
 
     digest = hashlib.pbkdf2_hmac(
         "sha256",
-        password.encode(),
-        salt.encode(),
+        str(password).encode("utf-8"),
+        salt.encode("utf-8"),
         120000,
     ).hex()
 
@@ -407,8 +408,8 @@ def verify_password(
 
         check = hashlib.pbkdf2_hmac(
             "sha256",
-            password.encode(),
-            salt.encode(),
+            str(password).encode("utf-8"),
+            salt.encode("utf-8"),
             120000,
         ).hex()
 
@@ -436,15 +437,18 @@ def clean_name(value):
 
 def parse_id(value):
 
-    if not value:
+    if value is None:
+        return None
+
+    text = str(value).strip()
+
+    if not text:
         return None
 
     try:
 
         return int(
-            str(value)
-            .split("|", 1)[0]
-            .strip()
+            text.split("|", 1)[0].strip()
         )
 
     except Exception:
@@ -473,6 +477,14 @@ def safe_int(
     except Exception:
 
         return default
+
+
+def empty_dropdown():
+
+    return gr.Dropdown(
+        choices=[],
+        value=None,
+    )
 
 
 # ==========================================================
@@ -651,11 +663,16 @@ def seed_database():
         # Admin
         # --------------------------------------------------
 
-        if not db.query(
-            Teacher
-        ).filter_by(
-            username="admin"
-        ).first():
+        admin = (
+            db.query(Teacher)
+            .filter_by(
+                username="admin"
+            )
+            .first()
+        )
+
+
+        if admin is None:
 
             db.add(
                 Teacher(
@@ -669,6 +686,12 @@ def seed_database():
                 )
             )
 
+        else:
+
+            # Always make sure admin remains active
+            admin.active = True
+            admin.role = "admin"
+
 
         db.commit()
 
@@ -677,9 +700,10 @@ def seed_database():
         # Connect active subjects to all classes
         # --------------------------------------------------
 
-        all_classes = db.query(
-            ClassSection
-        ).all()
+        all_classes = (
+            db.query(ClassSection)
+            .all()
+        )
 
         all_subjects = (
             db.query(Subject)
@@ -695,9 +719,7 @@ def seed_database():
             for subject in all_subjects:
 
                 exists = (
-                    db.query(
-                        ClassSubject
-                    )
+                    db.query(ClassSubject)
                     .filter_by(
                         class_id=cls.id,
                         subject_id=subject.id,
@@ -718,6 +740,11 @@ def seed_database():
 
         db.commit()
 
+
+    except Exception:
+
+        db.rollback()
+        raise
 
     finally:
 
@@ -953,6 +980,78 @@ def get_student_delete_choices():
 
 
 # ==========================================================
+# TEACHER CHOICES
+# ==========================================================
+
+
+def get_teacher_delete_choices():
+
+    db = SessionLocal()
+
+    try:
+
+        teachers = (
+            db.query(Teacher)
+            .filter(
+                Teacher.active == True,
+                Teacher.username != "admin",
+            )
+            .order_by(
+                Teacher.username
+            )
+            .all()
+        )
+
+        return [
+            (
+                f"{teacher.id} | "
+                f"{teacher.username} | "
+                f"{teacher.name}"
+            )
+            for teacher in teachers
+        ]
+
+    finally:
+
+        db.close()
+
+
+def get_teacher_list():
+
+    db = SessionLocal()
+
+    try:
+
+        teachers = (
+            db.query(Teacher)
+            .order_by(
+                Teacher.username
+            )
+            .all()
+        )
+
+        return [
+
+            [
+                teacher.id,
+                teacher.username,
+                teacher.name,
+                teacher.role,
+                "Active"
+                if teacher.active
+                else "Deleted",
+            ]
+
+            for teacher in teachers
+
+        ]
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
 # STUDENT LIST
 # ==========================================================
 
@@ -1180,6 +1279,267 @@ def get_exam_list():
 
 
 # ==========================================================
+# ADD TEACHER
+# ==========================================================
+
+
+def add_teacher(
+    teacher_username,
+    teacher_name,
+    teacher_password,
+):
+
+    username = clean_name(
+        teacher_username
+    ).lower()
+
+    name = clean_name(
+        teacher_name
+    )
+
+    password = str(
+        teacher_password or ""
+    ).strip()
+
+
+    if not username:
+
+        return (
+            "❌ Teacher username is required.",
+            get_teacher_list(),
+            gr.Dropdown(
+                choices=get_teacher_delete_choices(),
+                value=None,
+            ),
+        )
+
+
+    if not name:
+
+        return (
+            "❌ Teacher name is required.",
+            get_teacher_list(),
+            gr.Dropdown(
+                choices=get_teacher_delete_choices(),
+                value=None,
+            ),
+        )
+
+
+    if not password:
+
+        return (
+            "❌ Teacher password is required.",
+            get_teacher_list(),
+            gr.Dropdown(
+                choices=get_teacher_delete_choices(),
+                value=None,
+            ),
+        )
+
+
+    if len(password) < 6:
+
+        return (
+            "❌ Password must contain at least 6 characters.",
+            get_teacher_list(),
+            gr.Dropdown(
+                choices=get_teacher_delete_choices(),
+                value=None,
+            ),
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        existing = (
+            db.query(Teacher)
+            .filter(
+                Teacher.username == username
+            )
+            .first()
+        )
+
+
+        if existing:
+
+            if not existing.active:
+
+                existing.active = True
+                existing.name = name
+                existing.password_hash = hash_password(
+                    password
+                )
+                existing.role = "teacher"
+
+                db.commit()
+
+                return (
+                    "✅ Teacher restored successfully.",
+                    get_teacher_list(),
+                    gr.Dropdown(
+                        choices=get_teacher_delete_choices(),
+                        value=None,
+                    ),
+                )
+
+
+            return (
+                "❌ This username already exists.",
+                get_teacher_list(),
+                gr.Dropdown(
+                    choices=get_teacher_delete_choices(),
+                    value=None,
+                ),
+            )
+
+
+        teacher = Teacher(
+
+            username=username,
+
+            name=name,
+
+            password_hash=hash_password(
+                password
+            ),
+
+            role="teacher",
+
+            active=True,
+
+        )
+
+
+        db.add(teacher)
+
+        db.commit()
+
+
+        return (
+            "✅ Teacher added successfully.",
+            get_teacher_list(),
+            gr.Dropdown(
+                choices=get_teacher_delete_choices(),
+                value=None,
+            ),
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_teacher_list(),
+            gr.Dropdown(
+                choices=get_teacher_delete_choices(),
+                value=None,
+            ),
+        )
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# DELETE TEACHER
+# ==========================================================
+
+
+def delete_teacher(
+    teacher_value
+):
+
+    teacher_id = parse_id(
+        teacher_value
+    )
+
+
+    if not teacher_id:
+
+        return (
+            "❌ Please select a Teacher.",
+            get_teacher_list(),
+            gr.Dropdown(
+                choices=get_teacher_delete_choices(),
+                value=None,
+            ),
+        )
+
+
+    db = SessionLocal()
+
+    try:
+
+        teacher = db.get(
+            Teacher,
+            teacher_id,
+        )
+
+
+        if teacher is None:
+
+            return (
+                "❌ Teacher not found.",
+                get_teacher_list(),
+                gr.Dropdown(
+                    choices=get_teacher_delete_choices(),
+                    value=None,
+                ),
+            )
+
+
+        if teacher.username == "admin" or teacher.role == "admin":
+
+            return (
+                "❌ Admin account cannot be deleted.",
+                get_teacher_list(),
+                gr.Dropdown(
+                    choices=get_teacher_delete_choices(),
+                    value=None,
+                ),
+            )
+
+
+        teacher.active = False
+
+        db.commit()
+
+
+        return (
+            "✅ Teacher deleted successfully.",
+            get_teacher_list(),
+            gr.Dropdown(
+                choices=get_teacher_delete_choices(),
+                value=None,
+            ),
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Error: " + str(e),
+            get_teacher_list(),
+            gr.Dropdown(
+                choices=get_teacher_delete_choices(),
+                value=None,
+            ),
+        )
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
 # ADD STUDENT
 # ==========================================================
 
@@ -1247,6 +1607,24 @@ def add_student(
     db = SessionLocal()
 
     try:
+
+        class_obj = db.get(
+            ClassSection,
+            class_id,
+        )
+
+
+        if class_obj is None:
+
+            return (
+                "❌ Selected Class not found.",
+                get_student_list(),
+                gr.Dropdown(
+                    choices=get_student_delete_choices(),
+                    value=None,
+                ),
+            )
+
 
         existing = (
             db.query(Student)
@@ -1385,6 +1763,18 @@ def delete_student(
             )
 
 
+        if not student.active:
+
+            return (
+                "❌ Student is already deleted.",
+                get_student_list(),
+                gr.Dropdown(
+                    choices=get_student_delete_choices(),
+                    value=None,
+                ),
+            )
+
+
         student.active = False
 
         db.commit()
@@ -1433,27 +1823,21 @@ def add_academic_year(
     )
 
 
+    choices = get_years()
+
+
     if not year_name:
 
         return (
             "❌ Academic Year is required.",
             get_year_list(),
-            gr.Dropdown(
-                choices=get_years(),
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=get_years(),
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=get_years(),
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=get_years(),
-                value=None,
-            ),
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
 
 
@@ -1484,46 +1868,26 @@ def add_academic_year(
                 return (
                     "✅ Academic Year restored.",
                     get_year_list(),
-                    gr.Dropdown(
-                        choices=choices,
-                        value=None,
-                    ),
-                    gr.Dropdown(
-                        choices=choices,
-                        value=None,
-                    ),
-                    gr.Dropdown(
-                        choices=choices,
-                        value=None,
-                    ),
-                    gr.Dropdown(
-                        choices=choices,
-                        value=None,
-                    ),
+                    *[
+                        gr.Dropdown(
+                            choices=choices,
+                            value=None,
+                        )
+                        for _ in range(4)
+                    ],
                 )
 
-
-            choices = get_years()
 
             return (
                 "❌ Academic Year already exists.",
                 get_year_list(),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
+                *[
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    )
+                    for _ in range(4)
+                ],
             )
 
 
@@ -1541,22 +1905,13 @@ def add_academic_year(
         return (
             "✅ Academic Year added successfully.",
             get_year_list(),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
 
 
@@ -1569,22 +1924,13 @@ def add_academic_year(
         return (
             "❌ Error: " + str(e),
             get_year_list(),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
 
     finally:
@@ -1605,30 +1951,21 @@ def delete_academic_year(
         year_value
     )
 
+    choices = get_years()
+
 
     if not year_id:
-
-        choices = get_years()
 
         return (
             "❌ Please select an Academic Year.",
             get_year_list(),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
 
 
@@ -1644,27 +1981,16 @@ def delete_academic_year(
 
         if year is None:
 
-            choices = get_years()
-
             return (
                 "❌ Academic Year not found.",
                 get_year_list(),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
+                *[
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    )
+                    for _ in range(4)
+                ],
             )
 
 
@@ -1678,22 +2004,13 @@ def delete_academic_year(
             "✅ Academic Year deleted. "
             "Existing marks are preserved.",
             get_year_list(),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
 
 
@@ -1706,22 +2023,13 @@ def delete_academic_year(
         return (
             "❌ Error: " + str(e),
             get_year_list(),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
 
     finally:
@@ -1742,34 +2050,21 @@ def add_class(
         class_name
     )
 
+    choices = get_classes()
+
 
     if not class_name:
-
-        choices = get_classes()
 
         return (
             "❌ Class name is required.",
             get_class_list(),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(5)
+            ],
         )
 
 
@@ -1794,26 +2089,13 @@ def add_class(
             return (
                 "❌ Class already exists.",
                 get_class_list(),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
-                gr.Dropdown(
-                    choices=choices,
-                    value=None,
-                ),
+                *[
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    )
+                    for _ in range(5)
+                ],
             )
 
 
@@ -1837,12 +2119,24 @@ def add_class(
 
         for subject in subjects:
 
-            db.add(
-                ClassSubject(
+            exists = (
+                db.query(ClassSubject)
+                .filter_by(
                     class_id=new_class.id,
                     subject_id=subject.id,
                 )
+                .first()
             )
+
+
+            if not exists:
+
+                db.add(
+                    ClassSubject(
+                        class_id=new_class.id,
+                        subject_id=subject.id,
+                    )
+                )
 
 
         db.commit()
@@ -1852,26 +2146,13 @@ def add_class(
         return (
             "✅ Class added successfully.",
             get_class_list(),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(5)
+            ],
         )
 
 
@@ -1884,26 +2165,13 @@ def add_class(
         return (
             "❌ Error: " + str(e),
             get_class_list(),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
-            gr.Dropdown(
-                choices=choices,
-                value=None,
-            ),
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(5)
+            ],
         )
 
     finally:
@@ -1924,10 +2192,10 @@ def delete_class(
         class_value
     )
 
+    choices = get_classes()
+
 
     if not class_id:
-
-        choices = get_classes()
 
         return (
             "❌ Please select a Class.",
@@ -1954,8 +2222,6 @@ def delete_class(
 
         if cls is None:
 
-            choices = get_classes()
-
             return (
                 "❌ Class not found.",
                 get_class_list(),
@@ -1980,8 +2246,6 @@ def delete_class(
 
 
         if active_students > 0:
-
-            choices = get_classes()
 
             return (
                 "❌ Cannot delete this Class because "
@@ -2837,12 +3101,26 @@ def load_marks(
             )
 
 
-        return (
+        dataframe = pd.DataFrame(
             rows,
+            columns=headers,
+        )
+
+
+        return (
+            dataframe,
             "**Mark Pattern:** "
             + " + ".join(pattern),
         )
 
+
+    except Exception as e:
+
+        return (
+            [],
+            "❌ Error while loading marks: "
+            + str(e),
+        )
 
     finally:
 
@@ -2926,14 +3204,12 @@ def save_marks(
             return "❌ Subject not found."
 
 
-        if hasattr(
+        if isinstance(
             table_data,
-            "values"
+            pd.DataFrame
         ):
 
-            rows = (
-                table_data.values.tolist()
-            )
+            rows = table_data.values.tolist()
 
         else:
 
@@ -2952,7 +3228,7 @@ def save_marks(
 
         for row in rows:
 
-            if not row:
+            if row is None:
 
                 continue
 
@@ -2965,7 +3241,7 @@ def save_marks(
             try:
 
                 student_id = int(
-                    row[0]
+                    float(row[0])
                 )
 
             except Exception:
@@ -3029,10 +3305,6 @@ def save_marks(
 
                 position += 1
 
-
-            # --------------------------------------------------
-            # Validate maximum marks
-            # --------------------------------------------------
 
             if theory < 0 or theory > subject.theory_max:
 
@@ -3156,15 +3428,6 @@ def save_marks(
 # ==========================================================
 # CONSOLIDATED REPORT
 # ==========================================================
-#
-# Clean format:
-#
-# Roll No | Student Name | Subject | Exam |
-# Theory | Practical | Internal | Subject Total
-#
-# Chemistry and Quarterly are NOT repeated in column names.
-#
-# ==========================================================
 
 
 def generate_consolidated_report(
@@ -3275,10 +3538,6 @@ def generate_consolidated_report(
             )
 
 
-        # --------------------------------------------------
-        # Exams
-        # --------------------------------------------------
-
         if str(
             exam_value
         ).startswith("ALL"):
@@ -3330,10 +3589,6 @@ def generate_consolidated_report(
                 pd.DataFrame(),
             )
 
-
-        # --------------------------------------------------
-        # Build report
-        # --------------------------------------------------
 
         report_rows = []
 
@@ -3422,10 +3677,6 @@ def generate_consolidated_report(
 
                     })
 
-
-                # --------------------------------------------------
-                # Exam total row
-                # --------------------------------------------------
 
                 report_rows.append({
 
@@ -3550,6 +3801,129 @@ def generate_consolidated_report(
 
 
 # ==========================================================
+# EXCEL DOWNLOAD HELPERS
+# ==========================================================
+
+
+def dataframe_to_excel(
+    dataframe,
+    filename_prefix,
+):
+
+    if dataframe is None:
+
+        return None
+
+
+    if not isinstance(
+        dataframe,
+        pd.DataFrame
+    ):
+
+        try:
+
+            dataframe = pd.DataFrame(
+                dataframe
+            )
+
+        except Exception:
+
+            return None
+
+
+    if dataframe.empty:
+
+        return None
+
+
+    safe_prefix = clean_name(
+        filename_prefix
+    )
+
+
+    if not safe_prefix:
+
+        safe_prefix = "school_marks"
+
+
+    temp_file = tempfile.NamedTemporaryFile(
+        suffix=".xlsx",
+        prefix=safe_prefix + "_",
+        delete=False,
+    )
+
+    temp_path = temp_file.name
+
+    temp_file.close()
+
+
+    try:
+
+        with pd.ExcelWriter(
+            temp_path,
+            engine="openpyxl",
+        ) as writer:
+
+            dataframe.to_excel(
+                writer,
+                index=False,
+                sheet_name="Marks",
+            )
+
+
+        return temp_path
+
+
+    except Exception:
+
+        try:
+
+            if os.path.exists(
+                temp_path
+            ):
+
+                os.remove(
+                    temp_path
+                )
+
+        except Exception:
+
+            pass
+
+        return None
+
+
+# ==========================================================
+# VIEW MARKS EXCEL
+# ==========================================================
+
+
+def download_view_marks_excel(
+    table_data
+):
+
+    return dataframe_to_excel(
+        table_data,
+        "view_marks",
+    )
+
+
+# ==========================================================
+# CONSOLIDATED EXCEL
+# ==========================================================
+
+
+def download_consolidated_excel(
+    table_data
+):
+
+    return dataframe_to_excel(
+        table_data,
+        "consolidated_mark_list",
+    )
+
+
+# ==========================================================
 # LOGIN
 # ==========================================================
 
@@ -3559,17 +3933,40 @@ def login(
     password,
 ):
 
+    username = clean_name(
+        username
+    ).lower()
+
+    password = str(
+        password or ""
+    )
+
+
+    if not username or not password:
+
+        return (
+            "❌ Enter username and password.",
+            gr.update(
+                visible=False
+            ),
+            gr.update(
+                visible=False
+            ),
+            gr.update(
+                visible=False
+            ),
+        )
+
+
     db = SessionLocal()
 
     try:
 
         teacher = (
             db.query(Teacher)
-            .filter_by(
-                username=(
-                    username or ""
-                ).strip(),
-                active=True,
+            .filter(
+                Teacher.username == username,
+                Teacher.active == True,
             )
             .first()
         )
@@ -3582,11 +3979,17 @@ def login(
                 gr.update(
                     visible=False
                 ),
+                gr.update(
+                    visible=False
+                ),
+                gr.update(
+                    visible=False
+                ),
             )
 
 
         if not verify_password(
-            password or "",
+            password,
             teacher.password_hash,
         ):
 
@@ -3595,13 +3998,49 @@ def login(
                 gr.update(
                     visible=False
                 ),
+                gr.update(
+                    visible=False
+                ),
+                gr.update(
+                    visible=False
+                ),
+            )
+
+
+        is_admin = (
+            teacher.role == "admin"
+            or teacher.username == "admin"
+        )
+
+
+        if is_admin:
+
+            message = (
+                f"✅ Welcome, {teacher.name} "
+                f"(Admin)"
+            )
+
+        else:
+
+            message = (
+                f"✅ Welcome, {teacher.name} "
+                f"(Teacher)"
             )
 
 
         return (
-            f"✅ Welcome, {teacher.name}",
+            message,
+
             gr.update(
                 visible=True
+            ),
+
+            gr.update(
+                visible=is_admin
+            ),
+
+            gr.update(
+                visible=is_admin
             ),
         )
 
@@ -3684,15 +4123,93 @@ with gr.Blocks(
 
 
             # ==================================================
-            # MASTER DATA
+            # MASTER DATA - ADMIN ONLY
             # ==================================================
 
             with gr.Tab(
-                "⚙️ Master Data"
-            ):
+                "⚙️ Master Data",
+                visible=True,
+            ) as master_data_tab:
+
 
                 gr.Markdown(
                     "## ⚙️ Master Data Management"
+                )
+
+
+                # ==================================================
+                # TEACHER MANAGEMENT
+                # ==================================================
+
+                gr.Markdown(
+                    "### 👨‍🏫 Teacher Management"
+                )
+
+
+                with gr.Row():
+
+                    teacher_username_input = gr.Textbox(
+                        label="Teacher Username",
+                        placeholder="Example: ramesh",
+                    )
+
+                    teacher_name_input = gr.Textbox(
+                        label="Teacher Name",
+                        placeholder="Example: Ramesh",
+                    )
+
+                    teacher_password_input = gr.Textbox(
+                        label="Teacher Password",
+                        type="password",
+                        placeholder="Minimum 6 characters",
+                    )
+
+
+                with gr.Row():
+
+                    add_teacher_button = gr.Button(
+                        "➕ Add Teacher",
+                        variant="primary",
+                    )
+
+                    delete_teacher_select = gr.Dropdown(
+                        choices=get_teacher_delete_choices(),
+                        label="Select Teacher to Delete",
+                    )
+
+                    delete_teacher_button = gr.Button(
+                        "🗑️ Delete Teacher",
+                        variant="stop",
+                    )
+
+
+                teacher_message = gr.Markdown()
+
+
+                teacher_table = gr.Dataframe(
+
+                    headers=[
+                        "ID",
+                        "Username",
+                        "Name",
+                        "Role",
+                        "Status",
+                    ],
+
+                    value=get_teacher_list(),
+
+                    interactive=False,
+
+                )
+
+
+                gr.Markdown(
+                    """
+**Teacher Login:**  
+Admin creates each teacher's username and password here.
+
+Teacher accounts can use **Mark Entry, View Marks and Consolidated Report**, but cannot access Admin Master Data or Student Management.
+"""
                 )
 
 
@@ -3954,12 +4471,14 @@ with gr.Blocks(
 
 
             # ==================================================
-            # STUDENT MANAGEMENT
+            # STUDENT MANAGEMENT - ADMIN ONLY
             # ==================================================
 
             with gr.Tab(
-                "👨‍🎓 Student Management"
-            ):
+                "👨‍🎓 Student Management",
+                visible=True,
+            ) as student_management_tab:
+
 
                 gr.Markdown(
                     "## 👨‍🎓 Student Management"
@@ -3970,14 +4489,17 @@ with gr.Blocks(
 
                     admission_no = gr.Textbox(
                         label="Admission No",
+                        placeholder="Admission Number",
                     )
 
                     roll_no = gr.Textbox(
                         label="Roll No",
+                        placeholder="Roll Number",
                     )
 
                     student_name = gr.Textbox(
                         label="Student Name",
+                        placeholder="Student Name",
                     )
 
                     student_class = gr.Dropdown(
@@ -4199,7 +4721,8 @@ with gr.Blocks(
 
 
                 view_table = gr.Dataframe(
-                    interactive=False
+                    interactive=False,
+                    wrap=True,
                 )
 
 
@@ -4226,6 +4749,27 @@ with gr.Blocks(
                         view_pattern,
 
                     ],
+
+                )
+
+
+                # --------------------------------------------------
+                # VIEW MARKS EXCEL
+                # --------------------------------------------------
+
+                view_excel_button = gr.DownloadButton(
+                    "📥 Download View Marks Excel",
+                    variant="secondary",
+                )
+
+
+                view_excel_button.click(
+
+                    download_view_marks_excel,
+
+                    inputs=view_table,
+
+                    outputs=view_excel_button,
 
                 )
 
@@ -4293,6 +4837,30 @@ The report will show:
                 )
 
 
+                # --------------------------------------------------
+                # CONSOLIDATED EXCEL
+                # --------------------------------------------------
+
+                consolidated_excel_button = gr.DownloadButton(
+
+                    "📥 Download Consolidated Excel",
+
+                    variant="secondary",
+
+                )
+
+
+                consolidated_excel_button.click(
+
+                    download_consolidated_excel,
+
+                    inputs=consolidated_table,
+
+                    outputs=consolidated_excel_button,
+
+                )
+
+
                 gr.Markdown(
                     """
 ### 🖨️ Print
@@ -4329,20 +4897,110 @@ use **Ctrl + P** in your browser to print.
 
 
     # ======================================================
-    # MASTER DATA EVENTS
+    # TEACHER EVENTS
     # ======================================================
 
-    # ------------------------------------------------------
-    # ADD YEAR
-    #
-    # Outputs:
-    # 1 message
-    # 2 table
-    # 3 delete year
-    # 4 mark year
-    # 5 view year
-    # 6 list year
-    # ------------------------------------------------------
+    add_teacher_button.click(
+
+        add_teacher,
+
+        inputs=[
+
+            teacher_username_input,
+
+            teacher_name_input,
+
+            teacher_password_input,
+
+        ],
+
+        outputs=[
+
+            teacher_message,
+
+            teacher_table,
+
+            delete_teacher_select,
+
+        ],
+
+    )
+
+
+    delete_teacher_button.click(
+
+        delete_teacher,
+
+        inputs=delete_teacher_select,
+
+        outputs=[
+
+            teacher_message,
+
+            teacher_table,
+
+            delete_teacher_select,
+
+        ],
+
+    )
+
+
+    # ======================================================
+    # STUDENT EVENTS
+    # ======================================================
+
+    add_student_button.click(
+
+        add_student,
+
+        inputs=[
+
+            admission_no,
+
+            roll_no,
+
+            student_name,
+
+            student_class,
+
+        ],
+
+        outputs=[
+
+            student_message,
+
+            student_table,
+
+            delete_student_select,
+
+        ],
+
+    )
+
+
+    delete_student_button.click(
+
+        delete_student,
+
+        inputs=delete_student_select,
+
+        outputs=[
+
+            student_message,
+
+            student_table,
+
+            delete_student_select,
+
+        ],
+
+    )
+
+
+    # ======================================================
+    # MASTER DATA EVENTS
+    # ======================================================
 
     add_year_button.click(
 
@@ -4369,10 +5027,6 @@ use **Ctrl + P** in your browser to print.
     )
 
 
-    # ------------------------------------------------------
-    # DELETE YEAR
-    # ------------------------------------------------------
-
     delete_year_button.click(
 
         delete_academic_year,
@@ -4397,19 +5051,6 @@ use **Ctrl + P** in your browser to print.
 
     )
 
-
-    # ------------------------------------------------------
-    # ADD CLASS
-    #
-    # Outputs:
-    # 1 message
-    # 2 table
-    # 3 delete class
-    # 4 student class
-    # 5 mark class
-    # 6 view class
-    # 7 list class
-    # ------------------------------------------------------
 
     add_class_button.click(
 
@@ -4438,10 +5079,6 @@ use **Ctrl + P** in your browser to print.
     )
 
 
-    # ------------------------------------------------------
-    # DELETE CLASS
-    # ------------------------------------------------------
-
     delete_class_button.click(
 
         delete_class,
@@ -4468,10 +5105,6 @@ use **Ctrl + P** in your browser to print.
 
     )
 
-
-    # ------------------------------------------------------
-    # ADD SUBJECT
-    # ------------------------------------------------------
 
     add_subject_button.click(
 
@@ -4510,10 +5143,6 @@ use **Ctrl + P** in your browser to print.
     )
 
 
-    # ------------------------------------------------------
-    # DELETE SUBJECT
-    # ------------------------------------------------------
-
     delete_subject_button.click(
 
         delete_subject,
@@ -4532,10 +5161,6 @@ use **Ctrl + P** in your browser to print.
 
     )
 
-
-    # ------------------------------------------------------
-    # ADD EXAM
-    # ------------------------------------------------------
 
     add_exam_button.click(
 
@@ -4561,10 +5186,6 @@ use **Ctrl + P** in your browser to print.
 
     )
 
-
-    # ------------------------------------------------------
-    # DELETE EXAM
-    # ------------------------------------------------------
 
     delete_exam_button.click(
 
@@ -4613,6 +5234,10 @@ use **Ctrl + P** in your browser to print.
 
             application,
 
+            master_data_tab,
+
+            student_management_tab,
+
         ],
 
     )
@@ -4623,7 +5248,7 @@ use **Ctrl + P** in your browser to print.
     # ======================================================
 
     gr.Markdown(
-        "**Initial Login:** `admin` / `Admin@123`"
+        "**Initial Admin Login:** `admin` / `Admin@123`"
     )
 
 

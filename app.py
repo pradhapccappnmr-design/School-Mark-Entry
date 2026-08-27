@@ -1,3 +1,4 @@
+```python
 import os
 import hashlib
 import secrets
@@ -14,28 +15,35 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
-    UniqueConstraint
+    UniqueConstraint,
 )
 
 from sqlalchemy.orm import (
     declarative_base,
-    sessionmaker
+    sessionmaker,
 )
 
 
 # ==========================================================
 # SCHOOL MARK ENTRY SYSTEM
+# FINAL CLEAN VERSION
+# ==========================================================
+
+
+# ==========================================================
+# DATABASE CONFIGURATION
 # ==========================================================
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    ""
+    "",
 ).strip()
+
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = (
-        "postgresql://" +
-        DATABASE_URL[11:]
+        "postgresql://"
+        + DATABASE_URL[11:]
     )
 
 
@@ -43,7 +51,7 @@ if DATABASE_URL:
 
     engine = create_engine(
         DATABASE_URL,
-        pool_pre_ping=True
+        pool_pre_ping=True,
     )
 
 else:
@@ -52,13 +60,14 @@ else:
         "sqlite:///school_marks.db",
         connect_args={
             "check_same_thread": False
-        }
+        },
     )
 
 
 SessionLocal = sessionmaker(
-    bind=engine
+    bind=engine,
 )
+
 
 Base = declarative_base()
 
@@ -67,24 +76,25 @@ Base = declarative_base()
 # DATABASE TABLES
 # ==========================================================
 
+
 class AcademicYear(Base):
 
     __tablename__ = "academic_years"
 
     id = Column(
         Integer,
-        primary_key=True
+        primary_key=True,
     )
 
     name = Column(
         String(50),
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
     active = Column(
         Boolean,
-        default=True
+        default=True,
     )
 
 
@@ -94,13 +104,13 @@ class ClassSection(Base):
 
     id = Column(
         Integer,
-        primary_key=True
+        primary_key=True,
     )
 
     name = Column(
         String(50),
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
 
@@ -110,33 +120,33 @@ class Student(Base):
 
     id = Column(
         Integer,
-        primary_key=True
+        primary_key=True,
     )
 
     admission_no = Column(
         String(50),
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
     roll_no = Column(
-        String(50)
+        String(50),
     )
 
     name = Column(
         String(200),
-        nullable=False
+        nullable=False,
     )
 
     class_id = Column(
         Integer,
         ForeignKey("classes.id"),
-        nullable=False
+        nullable=False,
     )
 
     active = Column(
         Boolean,
-        default=True
+        default=True,
     )
 
 
@@ -146,33 +156,33 @@ class Teacher(Base):
 
     id = Column(
         Integer,
-        primary_key=True
+        primary_key=True,
     )
 
     username = Column(
         String(100),
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
     name = Column(
         String(200),
-        nullable=False
+        nullable=False,
     )
 
     password_hash = Column(
         String(500),
-        nullable=False
+        nullable=False,
     )
 
     role = Column(
         String(20),
-        default="teacher"
+        default="teacher",
     )
 
     active = Column(
         Boolean,
-        default=True
+        default=True,
     )
 
 
@@ -182,53 +192,53 @@ class Subject(Base):
 
     id = Column(
         Integer,
-        primary_key=True
+        primary_key=True,
     )
 
     name = Column(
         String(200),
-        nullable=False
+        nullable=False,
     )
 
     code = Column(
         String(50),
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
     theory = Column(
         Boolean,
-        default=True
+        default=True,
     )
 
     practical = Column(
         Boolean,
-        default=False
+        default=False,
     )
 
     internal = Column(
         Boolean,
-        default=True
+        default=True,
     )
 
     theory_max = Column(
         Integer,
-        default=0
+        default=0,
     )
 
     practical_max = Column(
         Integer,
-        default=0
+        default=0,
     )
 
     internal_max = Column(
         Integer,
-        default=0
+        default=0,
     )
 
     active = Column(
         Boolean,
-        default=True
+        default=True,
     )
 
 
@@ -238,26 +248,26 @@ class ClassSubject(Base):
 
     id = Column(
         Integer,
-        primary_key=True
+        primary_key=True,
     )
 
     class_id = Column(
         Integer,
         ForeignKey("classes.id"),
-        nullable=False
+        nullable=False,
     )
 
     subject_id = Column(
         Integer,
         ForeignKey("subjects.id"),
-        nullable=False
+        nullable=False,
     )
 
     __table_args__ = (
         UniqueConstraint(
             "class_id",
             "subject_id",
-            name="uq_class_subject"
+            name="uq_class_subject",
         ),
     )
 
@@ -268,18 +278,18 @@ class Exam(Base):
 
     id = Column(
         Integer,
-        primary_key=True
+        primary_key=True,
     )
 
     name = Column(
         String(100),
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
     active = Column(
         Boolean,
-        default=True
+        default=True,
     )
 
 
@@ -289,56 +299,56 @@ class Mark(Base):
 
     id = Column(
         Integer,
-        primary_key=True
+        primary_key=True,
     )
 
     academic_year_id = Column(
         Integer,
         ForeignKey("academic_years.id"),
-        nullable=False
+        nullable=False,
     )
 
     exam_id = Column(
         Integer,
         ForeignKey("exams.id"),
-        nullable=False
+        nullable=False,
     )
 
     student_id = Column(
         Integer,
         ForeignKey("students.id"),
-        nullable=False
+        nullable=False,
     )
 
     subject_id = Column(
         Integer,
         ForeignKey("subjects.id"),
-        nullable=False
+        nullable=False,
     )
 
     theory = Column(
         Integer,
-        default=0
+        default=0,
     )
 
     practical = Column(
         Integer,
-        default=0
+        default=0,
     )
 
     internal = Column(
         Integer,
-        default=0
+        default=0,
     )
 
     total = Column(
         Integer,
-        default=0
+        default=0,
     )
 
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow
+        default=datetime.utcnow,
     )
 
     __table_args__ = (
@@ -347,13 +357,13 @@ class Mark(Base):
             "exam_id",
             "student_id",
             "subject_id",
-            name="uq_student_exam_subject"
+            name="uq_student_exam_subject",
         ),
     )
 
 
 # ==========================================================
-# CREATE DATABASE TABLES
+# CREATE TABLES
 # ==========================================================
 
 Base.metadata.create_all(
@@ -365,6 +375,7 @@ Base.metadata.create_all(
 # PASSWORD FUNCTIONS
 # ==========================================================
 
+
 def hash_password(password):
 
     salt = secrets.token_hex(16)
@@ -373,38 +384,38 @@ def hash_password(password):
         "sha256",
         password.encode(),
         salt.encode(),
-        120000
+        120000,
     ).hex()
 
     return (
-        salt +
-        "$" +
-        digest
+        salt
+        + "$"
+        + digest
     )
 
 
 def verify_password(
     password,
-    stored
+    stored,
 ):
 
     try:
 
         salt, digest = stored.split(
             "$",
-            1
+            1,
         )
 
         check = hashlib.pbkdf2_hmac(
             "sha256",
             password.encode(),
             salt.encode(),
-            120000
+            120000,
         ).hex()
 
         return secrets.compare_digest(
             check,
-            digest
+            digest,
         )
 
     except Exception:
@@ -413,8 +424,62 @@ def verify_password(
 
 
 # ==========================================================
-# INITIAL DATA
+# BASIC HELPERS
 # ==========================================================
+
+
+def clean_name(value):
+
+    return str(
+        value or ""
+    ).strip()
+
+
+def parse_id(value):
+
+    if not value:
+        return None
+
+    try:
+
+        return int(
+            str(value)
+            .split("|", 1)[0]
+            .strip()
+        )
+
+    except Exception:
+
+        return None
+
+
+def safe_int(
+    value,
+    default=0,
+):
+
+    try:
+
+        if value in (
+            None,
+            "",
+        ):
+
+            return default
+
+        return int(
+            float(value)
+        )
+
+    except Exception:
+
+        return default
+
+
+# ==========================================================
+# INITIAL DATABASE
+# ==========================================================
+
 
 def seed_database():
 
@@ -433,7 +498,7 @@ def seed_database():
             db.add(
                 AcademicYear(
                     name="2026-27",
-                    active=True
+                    active=True,
                 )
             )
 
@@ -470,7 +535,7 @@ def seed_database():
 
                 ClassSection(
                     name="12-B"
-                )
+                ),
 
             ])
 
@@ -499,7 +564,7 @@ def seed_database():
 
                 Exam(
                     name="Annual"
-                )
+                ),
 
             ])
 
@@ -521,7 +586,8 @@ def seed_database():
                     practical=False,
                     internal=True,
                     theory_max=80,
-                    internal_max=20
+                    practical_max=0,
+                    internal_max=20,
                 ),
 
                 Subject(
@@ -531,7 +597,8 @@ def seed_database():
                     practical=False,
                     internal=True,
                     theory_max=80,
-                    internal_max=20
+                    practical_max=0,
+                    internal_max=20,
                 ),
 
                 Subject(
@@ -541,7 +608,8 @@ def seed_database():
                     practical=False,
                     internal=True,
                     theory_max=80,
-                    internal_max=20
+                    practical_max=0,
+                    internal_max=20,
                 ),
 
                 Subject(
@@ -552,7 +620,7 @@ def seed_database():
                     internal=True,
                     theory_max=70,
                     practical_max=20,
-                    internal_max=10
+                    internal_max=10,
                 ),
 
                 Subject(
@@ -563,7 +631,7 @@ def seed_database():
                     internal=True,
                     theory_max=70,
                     practical_max=20,
-                    internal_max=10
+                    internal_max=10,
                 ),
 
                 Subject(
@@ -574,8 +642,8 @@ def seed_database():
                     internal=True,
                     theory_max=70,
                     practical_max=20,
-                    internal_max=10
-                )
+                    internal_max=10,
+                ),
 
             ])
 
@@ -598,7 +666,7 @@ def seed_database():
                         "Admin@123"
                     ),
                     role="admin",
-                    active=True
+                    active=True,
                 )
             )
 
@@ -607,30 +675,36 @@ def seed_database():
 
 
         # --------------------------------------------------
-        # Connect Subjects to All Classes
+        # Connect active subjects to all classes
         # --------------------------------------------------
 
         all_classes = db.query(
             ClassSection
         ).all()
 
-        all_subjects = db.query(
-            Subject
-        ).filter(
-            Subject.active == True
-        ).all()
+        all_subjects = (
+            db.query(Subject)
+            .filter(
+                Subject.active == True
+            )
+            .all()
+        )
 
 
         for cls in all_classes:
 
             for subject in all_subjects:
 
-                exists = db.query(
-                    ClassSubject
-                ).filter_by(
-                    class_id=cls.id,
-                    subject_id=subject.id
-                ).first()
+                exists = (
+                    db.query(
+                        ClassSubject
+                    )
+                    .filter_by(
+                        class_id=cls.id,
+                        subject_id=subject.id,
+                    )
+                    .first()
+                )
 
 
                 if not exists:
@@ -638,7 +712,7 @@ def seed_database():
                     db.add(
                         ClassSubject(
                             class_id=cls.id,
-                            subject_id=subject.id
+                            subject_id=subject.id,
                         )
                     )
 
@@ -655,59 +729,9 @@ seed_database()
 
 
 # ==========================================================
-# HELPERS
+# CHOICE HELPERS
 # ==========================================================
 
-def parse_id(value):
-
-    if not value:
-
-        return None
-
-    try:
-
-        return int(
-            str(value)
-            .split("|", 1)[0]
-            .strip()
-        )
-
-    except Exception:
-
-        return None
-
-
-def clean_name(value):
-
-    return (
-        str(value or "")
-        .strip()
-    )
-
-
-def safe_int(value, default=0):
-
-    try:
-
-        if value in [
-            None,
-            ""
-        ]:
-
-            return default
-
-        return int(
-            float(value)
-        )
-
-    except Exception:
-
-        return default
-
-
-# ==========================================================
-# GET CLASSES
-# ==========================================================
 
 def get_classes():
 
@@ -716,9 +740,7 @@ def get_classes():
     try:
 
         rows = (
-            db.query(
-                ClassSection
-            )
+            db.query(ClassSection)
             .order_by(
                 ClassSection.name
             )
@@ -726,48 +748,14 @@ def get_classes():
         )
 
         return [
-            f"{x.id} | {x.name}"
-            for x in rows
+            f"{row.id} | {row.name}"
+            for row in rows
         ]
 
     finally:
 
         db.close()
 
-
-# ==========================================================
-# GET ACTIVE CLASSES
-# ==========================================================
-
-def get_active_classes():
-
-    db = SessionLocal()
-
-    try:
-
-        rows = (
-            db.query(
-                ClassSection
-            )
-            .order_by(
-                ClassSection.name
-            )
-            .all()
-        )
-
-        return [
-            f"{x.id} | {x.name}"
-            for x in rows
-        ]
-
-    finally:
-
-        db.close()
-
-
-# ==========================================================
-# GET YEARS
-# ==========================================================
 
 def get_years():
 
@@ -776,11 +764,9 @@ def get_years():
     try:
 
         rows = (
-            db.query(
-                AcademicYear
-            )
-            .filter_by(
-                active=True
+            db.query(AcademicYear)
+            .filter(
+                AcademicYear.active == True
             )
             .order_by(
                 AcademicYear.name
@@ -789,18 +775,14 @@ def get_years():
         )
 
         return [
-            f"{x.id} | {x.name}"
-            for x in rows
+            f"{row.id} | {row.name}"
+            for row in rows
         ]
 
     finally:
 
         db.close()
 
-
-# ==========================================================
-# GET EXAMS
-# ==========================================================
 
 def get_exams():
 
@@ -809,42 +791,7 @@ def get_exams():
     try:
 
         rows = (
-            db.query(
-                Exam
-            )
-            .filter_by(
-                active=True
-            )
-            .order_by(
-                Exam.id
-            )
-            .all()
-        )
-
-        return [
-            f"{x.id} | {x.name}"
-            for x in rows
-        ]
-
-    finally:
-
-        db.close()
-
-
-# ==========================================================
-# GET ALL EXAMS FOR CONSOLIDATED REPORT
-# ==========================================================
-
-def get_all_exams():
-
-    db = SessionLocal()
-
-    try:
-
-        exams = (
-            db.query(
-                Exam
-            )
+            db.query(Exam)
             .filter(
                 Exam.active == True
             )
@@ -854,25 +801,72 @@ def get_all_exams():
             .all()
         )
 
-        choices = [
-            "ALL | All Exams"
+        return [
+            f"{row.id} | {row.name}"
+            for row in rows
         ]
-
-        choices.extend([
-            f"{exam.id} | {exam.name}"
-            for exam in exams
-        ])
-
-        return choices
 
     finally:
 
         db.close()
 
 
-# ==========================================================
-# GET SUBJECTS FOR CLASS
-# ==========================================================
+def get_all_exams():
+
+    db = SessionLocal()
+
+    try:
+
+        rows = (
+            db.query(Exam)
+            .filter(
+                Exam.active == True
+            )
+            .order_by(
+                Exam.id
+            )
+            .all()
+        )
+
+        return (
+            ["ALL | All Exams"]
+            + [
+                f"{row.id} | {row.name}"
+                for row in rows
+            ]
+        )
+
+    finally:
+
+        db.close()
+
+
+def get_subject_choices():
+
+    db = SessionLocal()
+
+    try:
+
+        rows = (
+            db.query(Subject)
+            .filter(
+                Subject.active == True
+            )
+            .order_by(
+                Subject.name
+            )
+            .all()
+        )
+
+        return [
+            f"{row.id} | {row.name}"
+            for row in rows
+        ]
+
+    finally:
+
+        db.close()
+
 
 def get_subjects_for_class(
     class_value
@@ -886,7 +880,7 @@ def get_subjects_for_class(
 
         return gr.Dropdown(
             choices=[],
-            value=None
+            value=None,
         )
 
 
@@ -895,17 +889,16 @@ def get_subjects_for_class(
     try:
 
         subjects = (
-            db.query(
-                Subject
-            )
+            db.query(Subject)
             .join(
                 ClassSubject,
-                ClassSubject.subject_id ==
-                Subject.id
+                ClassSubject.subject_id
+                == Subject.id,
             )
             .filter(
-                ClassSubject.class_id == class_id,
-                Subject.active == True
+                ClassSubject.class_id
+                == class_id,
+                Subject.active == True,
             )
             .order_by(
                 Subject.name
@@ -913,18 +906,47 @@ def get_subjects_for_class(
             .all()
         )
 
-
-        subject_choices = [
+        choices = [
             f"{subject.id} | {subject.name}"
             for subject in subjects
         ]
 
-
         return gr.Dropdown(
-            choices=subject_choices,
-            value=None
+            choices=choices,
+            value=None,
         )
 
+    finally:
+
+        db.close()
+
+
+def get_student_delete_choices():
+
+    db = SessionLocal()
+
+    try:
+
+        students = (
+            db.query(Student)
+            .filter(
+                Student.active == True
+            )
+            .order_by(
+                Student.roll_no,
+                Student.name,
+            )
+            .all()
+        )
+
+        return [
+            (
+                f"{student.id} | "
+                f"{student.roll_no or '-'} | "
+                f"{student.name}"
+            )
+            for student in students
+        ]
 
     finally:
 
@@ -935,6 +957,7 @@ def get_subjects_for_class(
 # STUDENT LIST
 # ==========================================================
 
+
 def get_student_list():
 
     db = SessionLocal()
@@ -944,12 +967,12 @@ def get_student_list():
         rows = (
             db.query(
                 Student,
-                ClassSection
+                ClassSection,
             )
             .join(
                 ClassSection,
-                Student.class_id ==
-                ClassSection.id
+                Student.class_id
+                == ClassSection.id,
             )
             .filter(
                 Student.active == True
@@ -957,11 +980,10 @@ def get_student_list():
             .order_by(
                 ClassSection.name,
                 Student.roll_no,
-                Student.name
+                Student.name,
             )
             .all()
         )
-
 
         return [
 
@@ -970,13 +992,188 @@ def get_student_list():
                 student.admission_no,
                 student.roll_no or "",
                 student.name,
-                cls.name
+                cls.name,
             ]
 
             for student, cls in rows
 
         ]
 
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# ACADEMIC YEAR LIST
+# ==========================================================
+
+
+def get_year_list():
+
+    db = SessionLocal()
+
+    try:
+
+        rows = (
+            db.query(AcademicYear)
+            .order_by(
+                AcademicYear.name
+            )
+            .all()
+        )
+
+        return [
+
+            [
+                row.id,
+                row.name,
+                "Active"
+                if row.active
+                else "Deleted",
+            ]
+
+            for row in rows
+
+        ]
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# CLASS LIST
+# ==========================================================
+
+
+def get_class_list():
+
+    db = SessionLocal()
+
+    try:
+
+        rows = (
+            db.query(ClassSection)
+            .order_by(
+                ClassSection.name
+            )
+            .all()
+        )
+
+        return [
+            [
+                row.id,
+                row.name,
+            ]
+            for row in rows
+        ]
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# SUBJECT LIST
+# ==========================================================
+
+
+def get_subject_list():
+
+    db = SessionLocal()
+
+    try:
+
+        rows = (
+            db.query(Subject)
+            .order_by(
+                Subject.name
+            )
+            .all()
+        )
+
+        result = []
+
+        for subject in rows:
+
+            components = []
+
+            if subject.theory:
+
+                components.append(
+                    f"Theory ({subject.theory_max})"
+                )
+
+            if subject.practical:
+
+                components.append(
+                    f"Practical ({subject.practical_max})"
+                )
+
+            if subject.internal:
+
+                components.append(
+                    f"Internal ({subject.internal_max})"
+                )
+
+            result.append([
+
+                subject.id,
+
+                subject.name,
+
+                subject.code,
+
+                " + ".join(
+                    components
+                ),
+
+                "Active"
+                if subject.active
+                else "Deleted",
+
+            ])
+
+        return result
+
+    finally:
+
+        db.close()
+
+
+# ==========================================================
+# EXAM LIST
+# ==========================================================
+
+
+def get_exam_list():
+
+    db = SessionLocal()
+
+    try:
+
+        rows = (
+            db.query(Exam)
+            .order_by(
+                Exam.id
+            )
+            .all()
+        )
+
+        return [
+
+            [
+                row.id,
+                row.name,
+                "Active"
+                if row.active
+                else "Deleted",
+            ]
+
+            for row in rows
+
+        ]
 
     finally:
 
@@ -987,11 +1184,12 @@ def get_student_list():
 # ADD STUDENT
 # ==========================================================
 
+
 def add_student(
     admission_no,
     roll_no,
     student_name,
-    class_value
+    class_value,
 ):
 
     admission_no = clean_name(
@@ -1015,7 +1213,11 @@ def add_student(
 
         return (
             "❌ Admission No is required.",
-            get_student_list()
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1023,7 +1225,11 @@ def add_student(
 
         return (
             "❌ Student Name is required.",
-            get_student_list()
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1031,7 +1237,11 @@ def add_student(
 
         return (
             "❌ Please select Class.",
-            get_student_list()
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1039,38 +1249,48 @@ def add_student(
 
     try:
 
-        old_student = (
+        existing = (
             db.query(Student)
-            .filter_by(
-                admission_no=admission_no
+            .filter(
+                Student.admission_no
+                == admission_no
             )
             .first()
         )
 
 
-        if old_student:
+        if existing:
 
-            if not old_student.active:
+            if not existing.active:
 
-                old_student.active = True
-                old_student.roll_no = roll_no
-                old_student.name = student_name
-                old_student.class_id = class_id
+                existing.active = True
+                existing.roll_no = roll_no
+                existing.name = student_name
+                existing.class_id = class_id
 
                 db.commit()
 
                 return (
                     "✅ Student restored successfully.",
-                    get_student_list()
+                    get_student_list(),
+                    gr.Dropdown(
+                        choices=get_student_delete_choices(),
+                        value=None,
+                    ),
                 )
+
 
             return (
                 "❌ This Admission No already exists.",
-                get_student_list()
+                get_student_list(),
+                gr.Dropdown(
+                    choices=get_student_delete_choices(),
+                    value=None,
+                ),
             )
 
 
-        new_student = Student(
+        student = Student(
 
             admission_no=admission_no,
 
@@ -1080,21 +1300,23 @@ def add_student(
 
             class_id=class_id,
 
-            active=True
+            active=True,
 
         )
 
 
-        db.add(
-            new_student
-        )
+        db.add(student)
 
         db.commit()
 
 
         return (
             "✅ Student added successfully.",
-            get_student_list()
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1104,9 +1326,12 @@ def add_student(
 
         return (
             "❌ Error: " + str(e),
-            get_student_list()
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
         )
-
 
     finally:
 
@@ -1117,6 +1342,7 @@ def add_student(
 # DELETE STUDENT
 # ==========================================================
 
+
 def delete_student(
     student_value
 ):
@@ -1125,11 +1351,16 @@ def delete_student(
         student_value
     )
 
+
     if not student_id:
 
         return (
             "❌ Please select a Student.",
-            get_student_list()
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1139,7 +1370,7 @@ def delete_student(
 
         student = db.get(
             Student,
-            student_id
+            student_id,
         )
 
 
@@ -1147,7 +1378,11 @@ def delete_student(
 
             return (
                 "❌ Student not found.",
-                get_student_list()
+                get_student_list(),
+                gr.Dropdown(
+                    choices=get_student_delete_choices(),
+                    value=None,
+                ),
             )
 
 
@@ -1159,7 +1394,11 @@ def delete_student(
         return (
             "✅ Student deleted successfully. "
             "Existing marks are preserved.",
-            get_student_list()
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1169,43 +1408,12 @@ def delete_student(
 
         return (
             "❌ Error: " + str(e),
-            get_student_list()
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
         )
-
-
-    finally:
-
-        db.close()
-
-
-# ==========================================================
-# YEAR LIST
-# ==========================================================
-
-def get_year_list():
-
-    db = SessionLocal()
-
-    try:
-
-        rows = (
-            db.query(
-                AcademicYear
-            )
-            .order_by(
-                AcademicYear.name
-            )
-            .all()
-        )
-
-        return [
-            [
-                x.id,
-                x.name,
-                "Active" if x.active else "Deleted"
-            ]
-            for x in rows
-        ]
 
     finally:
 
@@ -1215,6 +1423,7 @@ def get_year_list():
 # ==========================================================
 # ADD ACADEMIC YEAR
 # ==========================================================
+
 
 def add_academic_year(
     year_name
@@ -1230,9 +1439,22 @@ def add_academic_year(
         return (
             "❌ Academic Year is required.",
             get_year_list(),
-            gr.update(
-                choices=get_years()
-            )
+            gr.Dropdown(
+                choices=get_years(),
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=get_years(),
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=get_years(),
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=get_years(),
+                value=None,
+            ),
         )
 
 
@@ -1241,11 +1463,10 @@ def add_academic_year(
     try:
 
         existing = (
-            db.query(
-                AcademicYear
-            )
+            db.query(AcademicYear)
             .filter(
-                AcademicYear.name == year_name
+                AcademicYear.name
+                == year_name
             )
             .first()
         )
@@ -1259,40 +1480,84 @@ def add_academic_year(
 
                 db.commit()
 
+                choices = get_years()
+
                 return (
                     "✅ Academic Year restored.",
                     get_year_list(),
-                    gr.update(
-                        choices=get_years()
-                    )
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    ),
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    ),
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    ),
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    ),
                 )
 
+
+            choices = get_years()
 
             return (
                 "❌ Academic Year already exists.",
                 get_year_list(),
-                gr.update(
-                    choices=get_years()
-                )
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
             )
 
 
         db.add(
             AcademicYear(
                 name=year_name,
-                active=True
+                active=True,
             )
         )
 
         db.commit()
 
+        choices = get_years()
 
         return (
             "✅ Academic Year added successfully.",
             get_year_list(),
-            gr.update(
-                choices=get_years()
-            )
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
         )
 
 
@@ -1300,14 +1565,28 @@ def add_academic_year(
 
         db.rollback()
 
+        choices = get_years()
+
         return (
             "❌ Error: " + str(e),
             get_year_list(),
-            gr.update(
-                choices=get_years()
-            )
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
         )
-
 
     finally:
 
@@ -1317,6 +1596,7 @@ def add_academic_year(
 # ==========================================================
 # DELETE ACADEMIC YEAR
 # ==========================================================
+
 
 def delete_academic_year(
     year_value
@@ -1329,12 +1609,27 @@ def delete_academic_year(
 
     if not year_id:
 
+        choices = get_years()
+
         return (
             "❌ Please select an Academic Year.",
             get_year_list(),
-            gr.update(
-                choices=get_years()
-            )
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
         )
 
 
@@ -1344,18 +1639,33 @@ def delete_academic_year(
 
         year = db.get(
             AcademicYear,
-            year_id
+            year_id,
         )
 
 
         if year is None:
 
+            choices = get_years()
+
             return (
                 "❌ Academic Year not found.",
                 get_year_list(),
-                gr.update(
-                    choices=get_years()
-                )
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
             )
 
 
@@ -1363,13 +1673,28 @@ def delete_academic_year(
 
         db.commit()
 
+        choices = get_years()
 
         return (
-            "✅ Academic Year deleted. Existing marks are preserved.",
+            "✅ Academic Year deleted. "
+            "Existing marks are preserved.",
             get_year_list(),
-            gr.update(
-                choices=get_years()
-            )
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
         )
 
 
@@ -1377,47 +1702,28 @@ def delete_academic_year(
 
         db.rollback()
 
+        choices = get_years()
+
         return (
             "❌ Error: " + str(e),
             get_year_list(),
-            gr.update(
-                choices=get_years()
-            )
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
         )
-
-
-    finally:
-
-        db.close()
-
-
-# ==========================================================
-# CLASS LIST
-# ==========================================================
-
-def get_class_list():
-
-    db = SessionLocal()
-
-    try:
-
-        rows = (
-            db.query(
-                ClassSection
-            )
-            .order_by(
-                ClassSection.name
-            )
-            .all()
-        )
-
-        return [
-            [
-                x.id,
-                x.name
-            ]
-            for x in rows
-        ]
 
     finally:
 
@@ -1427,6 +1733,7 @@ def get_class_list():
 # ==========================================================
 # ADD CLASS
 # ==========================================================
+
 
 def add_class(
     class_name
@@ -1439,12 +1746,31 @@ def add_class(
 
     if not class_name:
 
+        choices = get_classes()
+
         return (
             "❌ Class name is required.",
             get_class_list(),
-            gr.update(
-                choices=get_classes()
-            )
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
         )
 
 
@@ -1453,11 +1779,10 @@ def add_class(
     try:
 
         existing = (
-            db.query(
-                ClassSection
-            )
+            db.query(ClassSection)
             .filter(
-                ClassSection.name == class_name
+                ClassSection.name
+                == class_name
             )
             .first()
         )
@@ -1465,12 +1790,31 @@ def add_class(
 
         if existing:
 
+            choices = get_classes()
+
             return (
                 "❌ Class already exists.",
                 get_class_list(),
-                gr.update(
-                    choices=get_classes()
-                )
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                ),
             )
 
 
@@ -1478,17 +1822,13 @@ def add_class(
             name=class_name
         )
 
-        db.add(
-            new_class
-        )
+        db.add(new_class)
 
         db.flush()
 
 
         subjects = (
-            db.query(
-                Subject
-            )
+            db.query(Subject)
             .filter(
                 Subject.active == True
             )
@@ -1501,20 +1841,38 @@ def add_class(
             db.add(
                 ClassSubject(
                     class_id=new_class.id,
-                    subject_id=subject.id
+                    subject_id=subject.id,
                 )
             )
 
 
         db.commit()
 
+        choices = get_classes()
 
         return (
             "✅ Class added successfully.",
             get_class_list(),
-            gr.update(
-                choices=get_classes()
-            )
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
         )
 
 
@@ -1522,14 +1880,32 @@ def add_class(
 
         db.rollback()
 
+        choices = get_classes()
+
         return (
             "❌ Error: " + str(e),
             get_class_list(),
-            gr.update(
-                choices=get_classes()
-            )
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
+            gr.Dropdown(
+                choices=choices,
+                value=None,
+            ),
         )
-
 
     finally:
 
@@ -1539,6 +1915,7 @@ def add_class(
 # ==========================================================
 # DELETE CLASS
 # ==========================================================
+
 
 def delete_class(
     class_value
@@ -1551,12 +1928,18 @@ def delete_class(
 
     if not class_id:
 
+        choices = get_classes()
+
         return (
             "❌ Please select a Class.",
             get_class_list(),
-            gr.update(
-                choices=get_classes()
-            )
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(5)
+            ],
         )
 
 
@@ -1566,65 +1949,81 @@ def delete_class(
 
         cls = db.get(
             ClassSection,
-            class_id
+            class_id,
         )
 
 
         if cls is None:
 
+            choices = get_classes()
+
             return (
                 "❌ Class not found.",
                 get_class_list(),
-                gr.update(
-                    choices=get_classes()
-                )
+                *[
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    )
+                    for _ in range(5)
+                ],
             )
 
 
-        student_count = (
+        active_students = (
             db.query(Student)
             .filter(
                 Student.class_id == class_id,
-                Student.active == True
+                Student.active == True,
             )
             .count()
         )
 
 
-        if student_count > 0:
+        if active_students > 0:
+
+            choices = get_classes()
 
             return (
-                "❌ Cannot delete this Class because it "
-                "still has active students.",
+                "❌ Cannot delete this Class because "
+                "it still has active students.",
                 get_class_list(),
-                gr.update(
-                    choices=get_classes()
-                )
+                *[
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    )
+                    for _ in range(5)
+                ],
             )
 
 
         db.query(
             ClassSubject
         ).filter(
-            ClassSubject.class_id == class_id
+            ClassSubject.class_id
+            == class_id
         ).delete(
             synchronize_session=False
         )
 
 
-        db.delete(
-            cls
-        )
+        db.delete(cls)
 
         db.commit()
 
+        choices = get_classes()
 
         return (
             "✅ Class deleted successfully.",
             get_class_list(),
-            gr.update(
-                choices=get_classes()
-            )
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(5)
+            ],
         )
 
 
@@ -1632,84 +2031,19 @@ def delete_class(
 
         db.rollback()
 
+        choices = get_classes()
+
         return (
             "❌ Error: " + str(e),
             get_class_list(),
-            gr.update(
-                choices=get_classes()
-            )
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(5)
+            ],
         )
-
-
-    finally:
-
-        db.close()
-
-
-# ==========================================================
-# SUBJECT LIST
-# ==========================================================
-
-def get_subject_list():
-
-    db = SessionLocal()
-
-    try:
-
-        subjects = (
-            db.query(
-                Subject
-            )
-            .order_by(
-                Subject.name
-            )
-            .all()
-        )
-
-
-        result = []
-
-
-        for subject in subjects:
-
-            components = []
-
-
-            if subject.theory:
-                components.append(
-                    f"Theory ({subject.theory_max})"
-                )
-
-            if subject.practical:
-                components.append(
-                    f"Practical ({subject.practical_max})"
-                )
-
-            if subject.internal:
-                components.append(
-                    f"Internal ({subject.internal_max})"
-                )
-
-
-            result.append([
-
-                subject.id,
-
-                subject.name,
-
-                subject.code,
-
-                " + ".join(components),
-
-                "Active"
-                if subject.active
-                else "Deleted"
-
-            ])
-
-
-        return result
-
 
     finally:
 
@@ -1720,6 +2054,7 @@ def get_subject_list():
 # ADD SUBJECT
 # ==========================================================
 
+
 def add_subject(
     subject_name,
     subject_code,
@@ -1728,7 +2063,7 @@ def add_subject(
     internal,
     theory_max,
     practical_max,
-    internal_max
+    internal_max,
 ):
 
     subject_name = clean_name(
@@ -1745,12 +2080,10 @@ def add_subject(
         return (
             "❌ Subject name is required.",
             get_subject_list(),
-            gr.update(
-                choices=get_subjects_for_class(
-                    None
-                ).get("choices", [])
-                if False else []
-            )
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1759,20 +2092,75 @@ def add_subject(
         return (
             "❌ Subject code is required.",
             get_subject_list(),
-            gr.update(
-                choices=[]
-            )
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
         )
 
 
-    if not theory and not practical and not internal:
+    if not any([
+        theory,
+        practical,
+        internal,
+    ]):
 
         return (
             "❌ Select at least one component.",
             get_subject_list(),
-            gr.update(
-                choices=[]
-            )
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
+        )
+
+
+    theory_max = safe_int(
+        theory_max
+    )
+
+    practical_max = safe_int(
+        practical_max
+    )
+
+    internal_max = safe_int(
+        internal_max
+    )
+
+
+    if theory and theory_max <= 0:
+
+        return (
+            "❌ Theory maximum must be greater than 0.",
+            get_subject_list(),
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
+        )
+
+
+    if practical and practical_max <= 0:
+
+        return (
+            "❌ Practical maximum must be greater than 0.",
+            get_subject_list(),
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
+        )
+
+
+    if internal and internal_max <= 0:
+
+        return (
+            "❌ Internal maximum must be greater than 0.",
+            get_subject_list(),
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1781,11 +2169,10 @@ def add_subject(
     try:
 
         existing = (
-            db.query(
-                Subject
-            )
+            db.query(Subject)
             .filter(
-                Subject.code == subject_code
+                Subject.code
+                == subject_code
             )
             .first()
         )
@@ -1800,15 +2187,9 @@ def add_subject(
                 existing.theory = bool(theory)
                 existing.practical = bool(practical)
                 existing.internal = bool(internal)
-                existing.theory_max = safe_int(
-                    theory_max
-                )
-                existing.practical_max = safe_int(
-                    practical_max
-                )
-                existing.internal_max = safe_int(
-                    internal_max
-                )
+                existing.theory_max = theory_max
+                existing.practical_max = practical_max
+                existing.internal_max = internal_max
 
                 subject_id = existing.id
 
@@ -1817,9 +2198,10 @@ def add_subject(
                 return (
                     "❌ Subject code already exists.",
                     get_subject_list(),
-                    gr.update(
-                        choices=[]
-                    )
+                    gr.Dropdown(
+                        choices=get_subject_choices(),
+                        value=None,
+                    ),
                 )
 
         else:
@@ -1836,25 +2218,17 @@ def add_subject(
 
                 internal=bool(internal),
 
-                theory_max=safe_int(
-                    theory_max
-                ),
+                theory_max=theory_max,
 
-                practical_max=safe_int(
-                    practical_max
-                ),
+                practical_max=practical_max,
 
-                internal_max=safe_int(
-                    internal_max
-                ),
+                internal_max=internal_max,
 
-                active=True
+                active=True,
 
             )
 
-            db.add(
-                subject
-            )
+            db.add(subject)
 
             db.flush()
 
@@ -1862,9 +2236,7 @@ def add_subject(
 
 
         classes = (
-            db.query(
-                ClassSection
-            )
+            db.query(ClassSection)
             .all()
         )
 
@@ -1872,12 +2244,10 @@ def add_subject(
         for cls in classes:
 
             exists = (
-                db.query(
-                    ClassSubject
-                )
+                db.query(ClassSubject)
                 .filter_by(
                     class_id=cls.id,
-                    subject_id=subject_id
+                    subject_id=subject_id,
                 )
                 .first()
             )
@@ -1888,7 +2258,7 @@ def add_subject(
                 db.add(
                     ClassSubject(
                         class_id=cls.id,
-                        subject_id=subject_id
+                        subject_id=subject_id,
                     )
                 )
 
@@ -1899,9 +2269,10 @@ def add_subject(
         return (
             "✅ Subject added successfully.",
             get_subject_list(),
-            gr.update(
-                choices=[]
-            )
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1912,11 +2283,11 @@ def add_subject(
         return (
             "❌ Error: " + str(e),
             get_subject_list(),
-            gr.update(
-                choices=[]
-            )
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
         )
-
 
     finally:
 
@@ -1926,6 +2297,7 @@ def add_subject(
 # ==========================================================
 # DELETE SUBJECT
 # ==========================================================
+
 
 def delete_subject(
     subject_value
@@ -1941,9 +2313,10 @@ def delete_subject(
         return (
             "❌ Please select a Subject.",
             get_subject_list(),
-            gr.update(
-                choices=[]
-            )
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1953,7 +2326,7 @@ def delete_subject(
 
         subject = db.get(
             Subject,
-            subject_id
+            subject_id,
         )
 
 
@@ -1962,9 +2335,10 @@ def delete_subject(
             return (
                 "❌ Subject not found.",
                 get_subject_list(),
-                gr.update(
-                    choices=[]
-                )
+                gr.Dropdown(
+                    choices=get_subject_choices(),
+                    value=None,
+                ),
             )
 
 
@@ -1976,9 +2350,10 @@ def delete_subject(
         return (
             "✅ Subject deleted. Existing marks are preserved.",
             get_subject_list(),
-            gr.update(
-                choices=[]
-            )
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
         )
 
 
@@ -1989,51 +2364,11 @@ def delete_subject(
         return (
             "❌ Error: " + str(e),
             get_subject_list(),
-            gr.update(
-                choices=[]
-            )
+            gr.Dropdown(
+                choices=get_subject_choices(),
+                value=None,
+            ),
         )
-
-
-    finally:
-
-        db.close()
-
-
-# ==========================================================
-# EXAM LIST
-# ==========================================================
-
-def get_exam_list():
-
-    db = SessionLocal()
-
-    try:
-
-        exams = (
-            db.query(
-                Exam
-            )
-            .order_by(
-                Exam.id
-            )
-            .all()
-        )
-
-
-        return [
-
-            [
-                exam.id,
-                exam.name,
-                "Active"
-                if exam.active
-                else "Deleted"
-            ]
-
-            for exam in exams
-
-        ]
 
     finally:
 
@@ -2043,6 +2378,7 @@ def get_exam_list():
 # ==========================================================
 # ADD EXAM
 # ==========================================================
+
 
 def add_exam(
     exam_name
@@ -2055,12 +2391,18 @@ def add_exam(
 
     if not exam_name:
 
+        choices = get_exams()
+
         return (
             "❌ Exam name is required.",
             get_exam_list(),
-            gr.update(
-                choices=get_exams()
-            )
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
 
 
@@ -2069,11 +2411,10 @@ def add_exam(
     try:
 
         existing = (
-            db.query(
-                Exam
-            )
+            db.query(Exam)
             .filter(
-                Exam.name == exam_name
+                Exam.name
+                == exam_name
             )
             .first()
         )
@@ -2087,40 +2428,57 @@ def add_exam(
 
                 db.commit()
 
+                choices = get_exams()
+
                 return (
                     "✅ Exam restored successfully.",
                     get_exam_list(),
-                    gr.update(
-                        choices=get_exams()
-                    )
+                    *[
+                        gr.Dropdown(
+                            choices=choices,
+                            value=None,
+                        )
+                        for _ in range(4)
+                    ],
                 )
 
+
+            choices = get_exams()
 
             return (
                 "❌ Exam already exists.",
                 get_exam_list(),
-                gr.update(
-                    choices=get_exams()
-                )
+                *[
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    )
+                    for _ in range(4)
+                ],
             )
 
 
         db.add(
             Exam(
                 name=exam_name,
-                active=True
+                active=True,
             )
         )
 
         db.commit()
 
+        choices = get_exams()
 
         return (
             "✅ Exam added successfully.",
             get_exam_list(),
-            gr.update(
-                choices=get_exams()
-            )
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
 
 
@@ -2128,14 +2486,19 @@ def add_exam(
 
         db.rollback()
 
+        choices = get_exams()
+
         return (
             "❌ Error: " + str(e),
             get_exam_list(),
-            gr.update(
-                choices=get_exams()
-            )
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
-
 
     finally:
 
@@ -2145,6 +2508,7 @@ def add_exam(
 # ==========================================================
 # DELETE EXAM
 # ==========================================================
+
 
 def delete_exam(
     exam_value
@@ -2157,12 +2521,18 @@ def delete_exam(
 
     if not exam_id:
 
+        choices = get_exams()
+
         return (
             "❌ Please select an Exam.",
             get_exam_list(),
-            gr.update(
-                choices=get_exams()
-            )
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
 
 
@@ -2172,18 +2542,24 @@ def delete_exam(
 
         exam = db.get(
             Exam,
-            exam_id
+            exam_id,
         )
 
 
         if exam is None:
 
+            choices = get_exams()
+
             return (
                 "❌ Exam not found.",
                 get_exam_list(),
-                gr.update(
-                    choices=get_exams()
-                )
+                *[
+                    gr.Dropdown(
+                        choices=choices,
+                        value=None,
+                    )
+                    for _ in range(4)
+                ],
             )
 
 
@@ -2191,13 +2567,18 @@ def delete_exam(
 
         db.commit()
 
+        choices = get_exams()
 
         return (
             "✅ Exam deleted. Existing marks are preserved.",
             get_exam_list(),
-            gr.update(
-                choices=get_exams()
-            )
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
 
 
@@ -2205,14 +2586,19 @@ def delete_exam(
 
         db.rollback()
 
+        choices = get_exams()
+
         return (
             "❌ Error: " + str(e),
             get_exam_list(),
-            gr.update(
-                choices=get_exams()
-            )
+            *[
+                gr.Dropdown(
+                    choices=choices,
+                    value=None,
+                )
+                for _ in range(4)
+            ],
         )
-
 
     finally:
 
@@ -2220,14 +2606,15 @@ def delete_exam(
 
 
 # ==========================================================
-# MARK ENTRY - LOAD MARKS
+# MARK ENTRY - LOAD
 # ==========================================================
+
 
 def load_marks(
     class_value,
     year_value,
     exam_value,
-    subject_value
+    subject_value,
 ):
 
     class_id = parse_id(
@@ -2247,16 +2634,35 @@ def load_marks(
     )
 
 
-    if not all([
-        class_id,
-        year_id,
-        exam_id,
-        subject_id
-    ]):
+    if not class_id:
 
         return (
             [],
-            "❌ Please select all options."
+            "❌ Please select Class.",
+        )
+
+
+    if not year_id:
+
+        return (
+            [],
+            "❌ Please select Academic Year.",
+        )
+
+
+    if not exam_id:
+
+        return (
+            [],
+            "❌ Please select Exam.",
+        )
+
+
+    if not subject_id:
+
+        return (
+            [],
+            "❌ Please select Subject.",
         )
 
 
@@ -2266,7 +2672,7 @@ def load_marks(
 
         subject = db.get(
             Subject,
-            subject_id
+            subject_id,
         )
 
 
@@ -2274,21 +2680,19 @@ def load_marks(
 
             return (
                 [],
-                "❌ Subject not found."
+                "❌ Subject not found.",
             )
 
 
         students = (
-            db.query(
-                Student
-            )
-            .filter_by(
-                class_id=class_id,
-                active=True
+            db.query(Student)
+            .filter(
+                Student.class_id == class_id,
+                Student.active == True,
             )
             .order_by(
                 Student.roll_no,
-                Student.name
+                Student.name,
             )
             .all()
         )
@@ -2297,28 +2701,28 @@ def load_marks(
         headers = [
             "ID",
             "Roll No",
-            "Student Name"
+            "Student Name",
         ]
 
 
         if subject.theory:
 
             headers.append(
-                "Theory"
+                f"Theory / {subject.theory_max}"
             )
 
 
         if subject.practical:
 
             headers.append(
-                "Practical"
+                f"Practical / {subject.practical_max}"
             )
 
 
         if subject.internal:
 
             headers.append(
-                "Internal"
+                f"Internal / {subject.internal_max}"
             )
 
 
@@ -2338,7 +2742,7 @@ def load_marks(
                     academic_year_id=year_id,
                     exam_id=exam_id,
                     student_id=student.id,
-                    subject_id=subject_id
+                    subject_id=subject_id,
                 )
                 .first()
             )
@@ -2350,13 +2754,11 @@ def load_marks(
                 else 0
             )
 
-
             practical = (
                 mark.practical
                 if mark
                 else 0
             )
-
 
             internal = (
                 mark.internal
@@ -2366,16 +2768,20 @@ def load_marks(
 
 
             total = (
-                theory +
-                practical +
-                internal
+                theory
+                + practical
+                + internal
             )
 
 
             row = [
+
                 student.id,
+
                 student.roll_no or "",
-                student.name
+
+                student.name,
+
             ]
 
 
@@ -2405,9 +2811,7 @@ def load_marks(
             )
 
 
-            rows.append(
-                row
-            )
+            rows.append(row)
 
 
         pattern = []
@@ -2416,31 +2820,28 @@ def load_marks(
         if subject.theory:
 
             pattern.append(
-                f"Theory / {subject.theory_max}"
+                f"Theory: {subject.theory_max}"
             )
 
 
         if subject.practical:
 
             pattern.append(
-                f"Practical / {subject.practical_max}"
+                f"Practical: {subject.practical_max}"
             )
 
 
         if subject.internal:
 
             pattern.append(
-                f"Internal / {subject.internal_max}"
+                f"Internal: {subject.internal_max}"
             )
 
 
         return (
-
             rows,
-
-            "**Mark Pattern:** " +
-            " + ".join(pattern)
-
+            "**Mark Pattern:** "
+            + " + ".join(pattern),
         )
 
 
@@ -2450,15 +2851,16 @@ def load_marks(
 
 
 # ==========================================================
-# MARK ENTRY - SAVE MARKS
+# MARK ENTRY - SAVE
 # ==========================================================
+
 
 def save_marks(
     class_value,
     year_value,
     exam_value,
     subject_value,
-    table_data
+    table_data,
 ):
 
     class_id = parse_id(
@@ -2511,12 +2913,10 @@ def save_marks(
     try:
 
         subject = (
-            db.query(
-                Subject
-            )
+            db.query(Subject)
             .filter(
                 Subject.id == subject_id,
-                Subject.active == True
+                Subject.active == True,
             )
             .first()
         )
@@ -2533,9 +2933,7 @@ def save_marks(
         ):
 
             rows = (
-                table_data
-                .values
-                .tolist()
+                table_data.values.tolist()
             )
 
         else:
@@ -2555,7 +2953,7 @@ def save_marks(
 
         for row in rows:
 
-            if row is None:
+            if not row:
 
                 continue
 
@@ -2577,13 +2975,11 @@ def save_marks(
 
 
             student = (
-                db.query(
-                    Student
-                )
+                db.query(Student)
                 .filter(
                     Student.id == student_id,
                     Student.class_id == class_id,
-                    Student.active == True
+                    Student.active == True,
                 )
                 .first()
             )
@@ -2602,10 +2998,6 @@ def save_marks(
             internal = 0
 
 
-            # --------------------------------------------------
-            # Theory
-            # --------------------------------------------------
-
             if subject.theory:
 
                 if len(row) > position:
@@ -2616,10 +3008,6 @@ def save_marks(
 
                 position += 1
 
-
-            # --------------------------------------------------
-            # Practical
-            # --------------------------------------------------
 
             if subject.practical:
 
@@ -2632,10 +3020,6 @@ def save_marks(
                 position += 1
 
 
-            # --------------------------------------------------
-            # Internal
-            # --------------------------------------------------
-
             if subject.internal:
 
                 if len(row) > position:
@@ -2647,16 +3031,55 @@ def save_marks(
                 position += 1
 
 
+            # --------------------------------------------------
+            # Validate maximum marks
+            # --------------------------------------------------
+
+            if theory < 0 or theory > subject.theory_max:
+
+                return (
+                    f"❌ Invalid Theory mark for "
+                    f"{student.name}. "
+                    f"Maximum is {subject.theory_max}."
+                )
+
+
+            if (
+                subject.practical
+                and (
+                    practical < 0
+                    or practical > subject.practical_max
+                )
+            ):
+
+                return (
+                    f"❌ Invalid Practical mark for "
+                    f"{student.name}. "
+                    f"Maximum is {subject.practical_max}."
+                )
+
+
+            if (
+                subject.internal
+                and (
+                    internal < 0
+                    or internal > subject.internal_max
+                )
+            ):
+
+                return (
+                    f"❌ Invalid Internal mark for "
+                    f"{student.name}. "
+                    f"Maximum is {subject.internal_max}."
+                )
+
+
             total = (
-                theory +
-                practical +
-                internal
+                theory
+                + practical
+                + internal
             )
 
-
-            # --------------------------------------------------
-            # Existing Mark
-            # --------------------------------------------------
 
             mark = (
                 db.query(Mark)
@@ -2664,7 +3087,7 @@ def save_marks(
                     academic_year_id=year_id,
                     exam_id=exam_id,
                     student_id=student_id,
-                    subject_id=subject_id
+                    subject_id=subject_id,
                 )
                 .first()
             )
@@ -2680,13 +3103,11 @@ def save_marks(
 
                     student_id=student_id,
 
-                    subject_id=subject_id
+                    subject_id=subject_id,
 
                 )
 
-                db.add(
-                    mark
-                )
+                db.add(mark)
 
 
             mark.theory = theory
@@ -2724,10 +3145,9 @@ def save_marks(
         db.rollback()
 
         return (
-            "❌ Error while saving marks: " +
-            str(e)
+            "❌ Error while saving marks: "
+            + str(e)
         )
-
 
     finally:
 
@@ -2735,26 +3155,23 @@ def save_marks(
 
 
 # ==========================================================
-# CONSOLIDATED MARK LIST
-#
-# IMPORTANT:
-# Instead of creating headers like:
-# Quarterly - Chemistry Theory
-# Quarterly - Chemistry Practical
-#
-# this version creates a clean report:
-#
-# Roll No | Student | Subject | Exam |
-# Theory | Practical | Internal | Total
-#
-# So Chemistry and Quarterly are shown only once
-# in their own columns.
+# CONSOLIDATED REPORT
 # ==========================================================
+#
+# Clean format:
+#
+# Roll No | Student Name | Subject | Exam |
+# Theory | Practical | Internal | Subject Total
+#
+# Chemistry and Quarterly are NOT repeated in column names.
+#
+# ==========================================================
+
 
 def generate_consolidated_report(
     year_value,
     class_value,
-    exam_value
+    exam_value,
 ):
 
     year_id = parse_id(
@@ -2770,7 +3187,7 @@ def generate_consolidated_report(
 
         return (
             "❌ Please select Academic Year.",
-            pd.DataFrame()
+            pd.DataFrame(),
         )
 
 
@@ -2778,7 +3195,7 @@ def generate_consolidated_report(
 
         return (
             "❌ Please select Class.",
-            pd.DataFrame()
+            pd.DataFrame(),
         )
 
 
@@ -2786,7 +3203,7 @@ def generate_consolidated_report(
 
         return (
             "❌ Please select Exam.",
-            pd.DataFrame()
+            pd.DataFrame(),
         )
 
 
@@ -2794,14 +3211,8 @@ def generate_consolidated_report(
 
     try:
 
-        # --------------------------------------------------
-        # CLASS
-        # --------------------------------------------------
-
         class_obj = (
-            db.query(
-                ClassSection
-            )
+            db.query(ClassSection)
             .filter(
                 ClassSection.id == class_id
             )
@@ -2813,25 +3224,19 @@ def generate_consolidated_report(
 
             return (
                 "❌ Class not found.",
-                pd.DataFrame()
+                pd.DataFrame(),
             )
 
-
-        # --------------------------------------------------
-        # STUDENTS
-        # --------------------------------------------------
 
         students = (
-            db.query(
-                Student
-            )
+            db.query(Student)
             .filter(
                 Student.class_id == class_id,
-                Student.active == True
+                Student.active == True,
             )
             .order_by(
                 Student.roll_no,
-                Student.name
+                Student.name,
             )
             .all()
         )
@@ -2841,26 +3246,20 @@ def generate_consolidated_report(
 
             return (
                 "❌ No students found in this class.",
-                pd.DataFrame()
+                pd.DataFrame(),
             )
 
-
-        # --------------------------------------------------
-        # SUBJECTS
-        # --------------------------------------------------
 
         subjects = (
-            db.query(
-                Subject
-            )
+            db.query(Subject)
             .join(
                 ClassSubject,
-                ClassSubject.subject_id ==
-                Subject.id
+                ClassSubject.subject_id
+                == Subject.id,
             )
             .filter(
                 ClassSubject.class_id == class_id,
-                Subject.active == True
+                Subject.active == True,
             )
             .order_by(
                 Subject.name
@@ -2873,12 +3272,12 @@ def generate_consolidated_report(
 
             return (
                 "❌ No subjects found for this class.",
-                pd.DataFrame()
+                pd.DataFrame(),
             )
 
 
         # --------------------------------------------------
-        # EXAMS
+        # Exams
         # --------------------------------------------------
 
         if str(
@@ -2886,9 +3285,7 @@ def generate_consolidated_report(
         ).startswith("ALL"):
 
             exams = (
-                db.query(
-                    Exam
-                )
+                db.query(Exam)
                 .filter(
                     Exam.active == True
                 )
@@ -2904,14 +3301,11 @@ def generate_consolidated_report(
                 exam_value
             )
 
-
             exam_obj = (
-                db.query(
-                    Exam
-                )
+                db.query(Exam)
                 .filter(
                     Exam.id == exam_id,
-                    Exam.active == True
+                    Exam.active == True,
                 )
                 .first()
             )
@@ -2921,7 +3315,7 @@ def generate_consolidated_report(
 
                 return (
                     "❌ Exam not found.",
-                    pd.DataFrame()
+                    pd.DataFrame(),
                 )
 
 
@@ -2934,12 +3328,12 @@ def generate_consolidated_report(
 
             return (
                 "❌ No exams found.",
-                pd.DataFrame()
+                pd.DataFrame(),
             )
 
 
         # --------------------------------------------------
-        # REPORT ROWS
+        # Build report
         # --------------------------------------------------
 
         report_rows = []
@@ -2947,12 +3341,12 @@ def generate_consolidated_report(
 
         for student in students:
 
-            student_grand_total = 0
+            for exam in exams:
+
+                exam_total = 0
 
 
-            for subject in subjects:
-
-                for exam in exams:
+                for subject in subjects:
 
                     mark = (
                         db.query(Mark)
@@ -2960,7 +3354,7 @@ def generate_consolidated_report(
                             academic_year_id=year_id,
                             exam_id=exam.id,
                             student_id=student.id,
-                            subject_id=subject.id
+                            subject_id=subject.id,
                         )
                         .first()
                     )
@@ -2972,13 +3366,11 @@ def generate_consolidated_report(
                         else 0
                     )
 
-
                     practical = (
                         mark.practical
                         if mark
                         else 0
                     )
-
 
                     internal = (
                         mark.internal
@@ -2988,13 +3380,13 @@ def generate_consolidated_report(
 
 
                     total = (
-                        theory +
-                        practical +
-                        internal
+                        theory
+                        + practical
+                        + internal
                     )
 
 
-                    student_grand_total += total
+                    exam_total += total
 
 
                     report_rows.append({
@@ -3027,73 +3419,82 @@ def generate_consolidated_report(
                             else "",
 
                         "Subject Total":
-                            total
+                            total,
 
                     })
 
 
-            # --------------------------------------------------
-            # Grand Total row
-            # --------------------------------------------------
+                # --------------------------------------------------
+                # Exam total row
+                # --------------------------------------------------
 
-            report_rows.append({
+                report_rows.append({
 
-                "Roll No":
-                    student.roll_no or "",
+                    "Roll No":
+                        student.roll_no or "",
 
-                "Student Name":
-                    student.name,
+                    "Student Name":
+                        student.name,
 
-                "Subject":
-                    "TOTAL",
+                    "Subject":
+                        "EXAM TOTAL",
 
-                "Exam":
-                    "",
+                    "Exam":
+                        exam.name,
 
-                "Theory":
-                    "",
+                    "Theory":
+                        "",
 
-                "Practical":
-                    "",
+                    "Practical":
+                        "",
 
-                "Internal":
-                    "",
+                    "Internal":
+                        "",
 
-                "Subject Total":
-                    student_grand_total
+                    "Subject Total":
+                        exam_total,
 
-            })
+                })
 
-
-        # --------------------------------------------------
-        # DATAFRAME
-        # --------------------------------------------------
 
         report_df = pd.DataFrame(
+
             report_rows,
+
             columns=[
+
                 "Roll No",
+
                 "Student Name",
+
                 "Subject",
+
                 "Exam",
+
                 "Theory",
+
                 "Practical",
+
                 "Internal",
-                "Subject Total"
-            ]
+
+                "Subject Total",
+
+            ],
+
         )
 
 
-        # --------------------------------------------------
-        # MESSAGE
-        # --------------------------------------------------
-
         year_name = (
+
             str(year_value)
             .split("|", 1)[1]
             .strip()
-            if "|" in str(year_value)
+
+            if "|"
+            in str(year_value)
+
             else str(year_value)
+
         )
 
 
@@ -3122,17 +3523,17 @@ def generate_consolidated_report(
             f"**Exams:** "
             f"{exam_names}\n\n"
 
-            "#### 📌 Report Format\n\n"
+            "### 📌 Report Structure\n\n"
 
-            "Each row clearly separates "
-            "**Subject → Exam → Theory / Practical / Internal → Total**."
+            "**Roll No → Student → Subject → Exam "
+            "→ Theory → Practical → Internal → Total**"
 
         )
 
 
         return (
             message,
-            report_df
+            report_df,
         )
 
 
@@ -3141,9 +3542,8 @@ def generate_consolidated_report(
         return (
             "❌ Error while generating report: "
             + str(e),
-            pd.DataFrame()
+            pd.DataFrame(),
         )
-
 
     finally:
 
@@ -3154,9 +3554,10 @@ def generate_consolidated_report(
 # LOGIN
 # ==========================================================
 
+
 def login(
     username,
-    password
+    password,
 ):
 
     db = SessionLocal()
@@ -3164,14 +3565,12 @@ def login(
     try:
 
         teacher = (
-            db.query(
-                Teacher
-            )
+            db.query(Teacher)
             .filter_by(
                 username=(
                     username or ""
                 ).strip(),
-                active=True
+                active=True,
             )
             .first()
         )
@@ -3183,20 +3582,20 @@ def login(
                 "❌ Invalid username or password.",
                 gr.update(
                     visible=False
-                )
+                ),
             )
 
 
         if not verify_password(
             password or "",
-            teacher.password_hash
+            teacher.password_hash,
         ):
 
             return (
                 "❌ Invalid username or password.",
                 gr.update(
                     visible=False
-                )
+                ),
             )
 
 
@@ -3204,7 +3603,7 @@ def login(
             f"✅ Welcome, {teacher.name}",
             gr.update(
                 visible=True
-            )
+            ),
         )
 
 
@@ -3214,8 +3613,9 @@ def login(
 
 
 # ==========================================================
-# GRADIO CSS
+# CSS
 # ==========================================================
+
 
 css = """
 
@@ -3230,10 +3630,12 @@ css = """
 # GRADIO APPLICATION
 # ==========================================================
 
+
 with gr.Blocks(
     title="School Mark Entry",
-    css=css
+    css=css,
 ) as demo:
+
 
     # ======================================================
     # LOGIN
@@ -3242,7 +3644,6 @@ with gr.Blocks(
     gr.Markdown(
         "# 🏫 School Mark Entry System"
     )
-
 
     gr.Markdown(
         "### 🔐 Login"
@@ -3253,20 +3654,18 @@ with gr.Blocks(
 
         username = gr.Textbox(
             label="Username",
-            placeholder="Enter username"
+            placeholder="Enter username",
         )
-
 
         password = gr.Textbox(
             label="Password",
             type="password",
-            placeholder="Enter password"
+            placeholder="Enter password",
         )
-
 
         login_button = gr.Button(
             "🔐 Login",
-            variant="primary"
+            variant="primary",
         )
 
 
@@ -3286,7 +3685,7 @@ with gr.Blocks(
 
 
             # ==================================================
-            # MASTER DATA MANAGEMENT
+            # MASTER DATA
             # ==================================================
 
             with gr.Tab(
@@ -3295,15 +3694,6 @@ with gr.Blocks(
 
                 gr.Markdown(
                     "## ⚙️ Master Data Management"
-                )
-
-                gr.Markdown(
-                    """
-இந்த பகுதியில் **Academic Year, Class, Subject, Exam**
-ஆகியவற்றை Add / Delete செய்யலாம்.
-
-Delete செய்தாலும் பழைய marks data பாதுகாப்பாக இருக்கும்.
-"""
                 )
 
 
@@ -3315,16 +3705,17 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                     "### 📅 Academic Year"
                 )
 
+
                 with gr.Row():
 
                     academic_year_name = gr.Textbox(
                         label="Academic Year",
-                        placeholder="Example: 2027-28"
+                        placeholder="Example: 2027-28",
                     )
 
                     add_year_button = gr.Button(
                         "➕ Add Year",
-                        variant="primary"
+                        variant="primary",
                     )
 
 
@@ -3332,12 +3723,12 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     delete_year_select = gr.Dropdown(
                         choices=get_years(),
-                        label="Select Year to Delete"
+                        label="Select Year to Delete",
                     )
 
                     delete_year_button = gr.Button(
                         "🗑️ Delete Year",
-                        variant="stop"
+                        variant="stop",
                     )
 
 
@@ -3349,12 +3740,12 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                     headers=[
                         "ID",
                         "Academic Year",
-                        "Status"
+                        "Status",
                     ],
 
                     value=get_year_list(),
 
-                    interactive=False
+                    interactive=False,
 
                 )
 
@@ -3367,16 +3758,17 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                     "### 🏫 Class"
                 )
 
+
                 with gr.Row():
 
                     class_name_input = gr.Textbox(
                         label="Class Name",
-                        placeholder="Example: 12-C"
+                        placeholder="Example: 12-C",
                     )
 
                     add_class_button = gr.Button(
                         "➕ Add Class",
-                        variant="primary"
+                        variant="primary",
                     )
 
 
@@ -3384,12 +3776,12 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     delete_class_select = gr.Dropdown(
                         choices=get_classes(),
-                        label="Select Class to Delete"
+                        label="Select Class to Delete",
                     )
 
                     delete_class_button = gr.Button(
                         "🗑️ Delete Class",
-                        variant="stop"
+                        variant="stop",
                     )
 
 
@@ -3400,12 +3792,12 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     headers=[
                         "ID",
-                        "Class"
+                        "Class",
                     ],
 
                     value=get_class_list(),
 
-                    interactive=False
+                    interactive=False,
 
                 )
 
@@ -3418,16 +3810,17 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                     "### 📚 Subject"
                 )
 
+
                 with gr.Row():
 
                     subject_name_input = gr.Textbox(
                         label="Subject Name",
-                        placeholder="Example: Chemistry"
+                        placeholder="Example: Chemistry",
                     )
 
                     subject_code_input = gr.Textbox(
                         label="Subject Code",
-                        placeholder="Example: CHE"
+                        placeholder="Example: CHE",
                     )
 
 
@@ -3435,17 +3828,17 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     subject_theory = gr.Checkbox(
                         label="Theory",
-                        value=True
+                        value=True,
                     )
 
                     subject_practical = gr.Checkbox(
                         label="Practical",
-                        value=False
+                        value=False,
                     )
 
                     subject_internal = gr.Checkbox(
                         label="Internal",
-                        value=True
+                        value=True,
                     )
 
 
@@ -3454,19 +3847,19 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                     subject_theory_max = gr.Number(
                         label="Theory Maximum",
                         value=80,
-                        precision=0
+                        precision=0,
                     )
 
                     subject_practical_max = gr.Number(
                         label="Practical Maximum",
                         value=0,
-                        precision=0
+                        precision=0,
                     )
 
                     subject_internal_max = gr.Number(
                         label="Internal Maximum",
                         value=20,
-                        precision=0
+                        precision=0,
                     )
 
 
@@ -3474,17 +3867,17 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     add_subject_button = gr.Button(
                         "➕ Add Subject",
-                        variant="primary"
+                        variant="primary",
                     )
 
                     delete_subject_select = gr.Dropdown(
-                        choices=[],
-                        label="Select Subject to Delete"
+                        choices=get_subject_choices(),
+                        label="Select Subject to Delete",
                     )
 
                     delete_subject_button = gr.Button(
                         "🗑️ Delete Subject",
-                        variant="stop"
+                        variant="stop",
                     )
 
 
@@ -3498,12 +3891,12 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                         "Subject",
                         "Code",
                         "Components",
-                        "Status"
+                        "Status",
                     ],
 
                     value=get_subject_list(),
 
-                    interactive=False
+                    interactive=False,
 
                 )
 
@@ -3516,16 +3909,17 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                     "### 📝 Exam"
                 )
 
+
                 with gr.Row():
 
                     exam_name_input = gr.Textbox(
                         label="Exam Name",
-                        placeholder="Example: Monthly Test"
+                        placeholder="Example: Monthly Test",
                     )
 
                     add_exam_button = gr.Button(
                         "➕ Add Exam",
-                        variant="primary"
+                        variant="primary",
                     )
 
 
@@ -3533,12 +3927,12 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     delete_exam_select = gr.Dropdown(
                         choices=get_exams(),
-                        label="Select Exam to Delete"
+                        label="Select Exam to Delete",
                     )
 
                     delete_exam_button = gr.Button(
                         "🗑️ Delete Exam",
-                        variant="stop"
+                        variant="stop",
                     )
 
 
@@ -3550,12 +3944,12 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                     headers=[
                         "ID",
                         "Exam",
-                        "Status"
+                        "Status",
                     ],
 
                     value=get_exam_list(),
 
-                    interactive=False
+                    interactive=False,
 
                 )
 
@@ -3576,23 +3970,20 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                 with gr.Row():
 
                     admission_no = gr.Textbox(
-                        label="Admission No"
+                        label="Admission No",
                     )
-
 
                     roll_no = gr.Textbox(
-                        label="Roll No"
+                        label="Roll No",
                     )
-
 
                     student_name = gr.Textbox(
-                        label="Student Name"
+                        label="Student Name",
                     )
-
 
                     student_class = gr.Dropdown(
                         choices=get_classes(),
-                        label="Class"
+                        label="Class",
                     )
 
 
@@ -3600,17 +3991,17 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     add_student_button = gr.Button(
                         "➕ Add Student",
-                        variant="primary"
+                        variant="primary",
                     )
 
                     delete_student_select = gr.Dropdown(
-                        choices=[],
-                        label="Select Student to Delete"
+                        choices=get_student_delete_choices(),
+                        label="Select Student to Delete",
                     )
 
                     delete_student_button = gr.Button(
                         "🗑️ Delete Student",
-                        variant="stop"
+                        variant="stop",
                     )
 
 
@@ -3624,71 +4015,12 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                         "Admission No",
                         "Roll No",
                         "Student Name",
-                        "Class"
+                        "Class",
                     ],
 
                     value=get_student_list(),
 
-                    interactive=False
-
-                )
-
-
-                # --------------------------------------------------
-                # Refresh student delete dropdown
-                # --------------------------------------------------
-
-                student_table.change(
-                    lambda: gr.update(
-                        choices=[
-                            f"{row[0]} | {row[3]}"
-                            for row in get_student_list()
-                        ]
-                    ),
-                    outputs=delete_student_select
-                )
-
-
-                add_student_button.click(
-
-                    add_student,
-
-                    inputs=[
-
-                        admission_no,
-
-                        roll_no,
-
-                        student_name,
-
-                        student_class
-
-                    ],
-
-                    outputs=[
-
-                        student_message,
-
-                        student_table
-
-                    ]
-
-                )
-
-
-                delete_student_button.click(
-
-                    delete_student,
-
-                    inputs=delete_student_select,
-
-                    outputs=[
-
-                        student_message,
-
-                        student_table
-
-                    ]
+                    interactive=False,
 
                 )
 
@@ -3710,25 +4042,22 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     mark_year = gr.Dropdown(
                         choices=get_years(),
-                        label="Academic Year"
+                        label="Academic Year",
                     )
-
 
                     mark_class = gr.Dropdown(
                         choices=get_classes(),
-                        label="Class"
+                        label="Class",
                     )
-
 
                     mark_exam = gr.Dropdown(
                         choices=get_exams(),
-                        label="Exam"
+                        label="Exam",
                     )
-
 
                     mark_subject = gr.Dropdown(
                         choices=[],
-                        label="Subject"
+                        label="Subject",
                     )
 
 
@@ -3738,7 +4067,7 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     inputs=mark_class,
 
-                    outputs=mark_subject
+                    outputs=mark_subject,
 
                 )
 
@@ -3768,7 +4097,7 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                         mark_exam,
 
-                        mark_subject
+                        mark_subject,
 
                     ],
 
@@ -3776,16 +4105,16 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                         marks_table,
 
-                        mark_pattern
+                        mark_pattern,
 
-                    ]
+                    ],
 
                 )
 
 
                 save_button = gr.Button(
                     "💾 Save Marks",
-                    variant="primary"
+                    variant="primary",
                 )
 
 
@@ -3806,11 +4135,11 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                         mark_subject,
 
-                        marks_table
+                        marks_table,
 
                     ],
 
-                    outputs=save_message
+                    outputs=save_message,
 
                 )
 
@@ -3832,25 +4161,22 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     view_year = gr.Dropdown(
                         choices=get_years(),
-                        label="Academic Year"
+                        label="Academic Year",
                     )
-
 
                     view_class = gr.Dropdown(
                         choices=get_classes(),
-                        label="Class"
+                        label="Class",
                     )
-
 
                     view_exam = gr.Dropdown(
                         choices=get_exams(),
-                        label="Exam"
+                        label="Exam",
                     )
-
 
                     view_subject = gr.Dropdown(
                         choices=[],
-                        label="Subject"
+                        label="Subject",
                     )
 
 
@@ -3860,7 +4186,7 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                     inputs=view_class,
 
-                    outputs=view_subject
+                    outputs=view_subject,
 
                 )
 
@@ -3890,7 +4216,7 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                         view_exam,
 
-                        view_subject
+                        view_subject,
 
                     ],
 
@@ -3898,15 +4224,15 @@ Delete செய்தாலும் பழைய marks data பாதுகா
 
                         view_table,
 
-                        view_pattern
+                        view_pattern,
 
-                    ]
+                    ],
 
                 )
 
 
             # ==================================================
-            # CONSOLIDATED MARK LIST / PRINT
+            # CONSOLIDATED REPORT
             # ==================================================
 
             with gr.Tab(
@@ -3922,7 +4248,7 @@ Delete செய்தாலும் பழைய marks data பாதுகா
                     """
 Select **Academic Year + Class + Exam**.
 
-Report format:
+The report will show:
 
 **Roll No → Student → Subject → Exam → Theory → Practical → Internal → Total**
 """
@@ -3932,35 +4258,18 @@ Report format:
                 with gr.Row():
 
                     list_year = gr.Dropdown(
-
                         choices=get_years(),
-
                         label="Academic Year",
-
-                        interactive=True
-
                     )
-
 
                     list_class = gr.Dropdown(
-
                         choices=get_classes(),
-
                         label="Class",
-
-                        interactive=True
-
                     )
 
-
                     list_exam = gr.Dropdown(
-
                         choices=get_all_exams(),
-
                         label="Exam",
-
-                        interactive=True
-
                     )
 
 
@@ -3968,7 +4277,7 @@ Report format:
 
                     "📋 View Consolidated Mark List",
 
-                    variant="primary"
+                    variant="primary",
 
                 )
 
@@ -3980,7 +4289,7 @@ Report format:
 
                     interactive=False,
 
-                    wrap=True
+                    wrap=True,
 
                 )
 
@@ -3989,8 +4298,8 @@ Report format:
                     """
 ### 🖨️ Print
 
-After the consolidated mark list appears,
-use **Ctrl + P** in your browser to print it.
+After the report appears,
+use **Ctrl + P** in your browser to print.
 """
                 )
 
@@ -4005,7 +4314,7 @@ use **Ctrl + P** in your browser to print it.
 
                         list_class,
 
-                        list_exam
+                        list_exam,
 
                     ],
 
@@ -4013,9 +4322,9 @@ use **Ctrl + P** in your browser to print it.
 
                         consolidated_message,
 
-                        consolidated_table
+                        consolidated_table,
 
-                    ]
+                    ],
 
                 )
 
@@ -4025,7 +4334,15 @@ use **Ctrl + P** in your browser to print it.
     # ======================================================
 
     # ------------------------------------------------------
-    # YEAR
+    # ADD YEAR
+    #
+    # Outputs:
+    # 1 message
+    # 2 table
+    # 3 delete year
+    # 4 mark year
+    # 5 view year
+    # 6 list year
     # ------------------------------------------------------
 
     add_year_button.click(
@@ -4040,12 +4357,22 @@ use **Ctrl + P** in your browser to print it.
 
             year_table,
 
-            delete_year_select
+            delete_year_select,
 
-        ]
+            mark_year,
+
+            view_year,
+
+            list_year,
+
+        ],
 
     )
 
+
+    # ------------------------------------------------------
+    # DELETE YEAR
+    # ------------------------------------------------------
 
     delete_year_button.click(
 
@@ -4059,15 +4386,30 @@ use **Ctrl + P** in your browser to print it.
 
             year_table,
 
-            delete_year_select
+            delete_year_select,
 
-        ]
+            mark_year,
+
+            view_year,
+
+            list_year,
+
+        ],
 
     )
 
 
     # ------------------------------------------------------
-    # CLASS
+    # ADD CLASS
+    #
+    # Outputs:
+    # 1 message
+    # 2 table
+    # 3 delete class
+    # 4 student class
+    # 5 mark class
+    # 6 view class
+    # 7 list class
     # ------------------------------------------------------
 
     add_class_button.click(
@@ -4082,12 +4424,24 @@ use **Ctrl + P** in your browser to print it.
 
             class_table,
 
-            delete_class_select
+            delete_class_select,
 
-        ]
+            student_class,
+
+            mark_class,
+
+            view_class,
+
+            list_class,
+
+        ],
 
     )
 
+
+    # ------------------------------------------------------
+    # DELETE CLASS
+    # ------------------------------------------------------
 
     delete_class_button.click(
 
@@ -4101,15 +4455,23 @@ use **Ctrl + P** in your browser to print it.
 
             class_table,
 
-            delete_class_select
+            delete_class_select,
 
-        ]
+            student_class,
+
+            mark_class,
+
+            view_class,
+
+            list_class,
+
+        ],
 
     )
 
 
     # ------------------------------------------------------
-    # SUBJECT
+    # ADD SUBJECT
     # ------------------------------------------------------
 
     add_subject_button.click(
@@ -4132,7 +4494,7 @@ use **Ctrl + P** in your browser to print it.
 
             subject_practical_max,
 
-            subject_internal_max
+            subject_internal_max,
 
         ],
 
@@ -4142,12 +4504,16 @@ use **Ctrl + P** in your browser to print it.
 
             subject_table,
 
-            delete_subject_select
+            delete_subject_select,
 
-        ]
+        ],
 
     )
 
+
+    # ------------------------------------------------------
+    # DELETE SUBJECT
+    # ------------------------------------------------------
 
     delete_subject_button.click(
 
@@ -4161,15 +4527,15 @@ use **Ctrl + P** in your browser to print it.
 
             subject_table,
 
-            delete_subject_select
+            delete_subject_select,
 
-        ]
+        ],
 
     )
 
 
     # ------------------------------------------------------
-    # EXAM
+    # ADD EXAM
     # ------------------------------------------------------
 
     add_exam_button.click(
@@ -4184,12 +4550,22 @@ use **Ctrl + P** in your browser to print it.
 
             exam_table,
 
-            delete_exam_select
+            delete_exam_select,
 
-        ]
+            mark_exam,
+
+            view_exam,
+
+            list_exam,
+
+        ],
 
     )
 
+
+    # ------------------------------------------------------
+    # DELETE EXAM
+    # ------------------------------------------------------
 
     delete_exam_button.click(
 
@@ -4203,9 +4579,15 @@ use **Ctrl + P** in your browser to print it.
 
             exam_table,
 
-            delete_exam_select
+            delete_exam_select,
 
-        ]
+            mark_exam,
+
+            view_exam,
+
+            list_exam,
+
+        ],
 
     )
 
@@ -4222,7 +4604,7 @@ use **Ctrl + P** in your browser to print it.
 
             username,
 
-            password
+            password,
 
         ],
 
@@ -4230,15 +4612,15 @@ use **Ctrl + P** in your browser to print it.
 
             login_message,
 
-            application
+            application,
 
-        ]
+        ],
 
     )
 
 
     # ======================================================
-    # INITIAL LOGIN INFORMATION
+    # LOGIN INFORMATION
     # ======================================================
 
     gr.Markdown(
@@ -4250,12 +4632,13 @@ use **Ctrl + P** in your browser to print it.
 # START SERVER
 # ==========================================================
 
+
 if __name__ == "__main__":
 
     port = int(
         os.getenv(
             "PORT",
-            "7860"
+            "7860",
         )
     )
 
@@ -4264,6 +4647,7 @@ if __name__ == "__main__":
 
         server_name="0.0.0.0",
 
-        server_port=port
+        server_port=port,
 
     )
+```

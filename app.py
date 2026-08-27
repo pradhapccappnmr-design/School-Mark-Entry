@@ -1704,10 +1704,15 @@ def get_teachers():
         db.close()
 
 
+# ==========================================================
+# ADD TEACHER / USER
+# ==========================================================
+
 def add_teacher(
     username,
     teacher_name,
-    password
+    password,
+    confirm_password
 ):
 
     username = clean_text(
@@ -1720,6 +1725,10 @@ def add_teacher(
 
     password = str(
         password or ""
+    ).strip()
+
+    confirm_password = str(
+        confirm_password or ""
     ).strip()
 
     if not username:
@@ -1740,6 +1749,20 @@ def add_teacher(
 
         return (
             "❌ Password is required.",
+            get_teachers()
+        )
+
+    if not confirm_password:
+
+        return (
+            "❌ Confirm Password is required.",
+            get_teachers()
+        )
+
+    if password != confirm_password:
+
+        return (
+            "❌ Password and Confirm Password do not match.",
             get_teachers()
         )
 
@@ -1817,6 +1840,10 @@ def add_teacher(
 
         db.close()
 
+
+# ==========================================================
+# DELETE TEACHER
+# ==========================================================
 
 def delete_teacher(username):
 
@@ -3534,6 +3561,12 @@ with gr.Blocks(
                         placeholder="Minimum 6 characters"
                     )
 
+                    new_teacher_confirm_password = gr.Textbox(
+                        label="Confirm Password",
+                        type="password",
+                        placeholder="Re-enter password"
+                    )
+
                 add_teacher_button = gr.Button(
                     "➕ Create User",
                     variant="primary"
@@ -4005,7 +4038,8 @@ with gr.Blocks(
         inputs=[
             new_username,
             new_teacher_name,
-            new_teacher_password
+            new_teacher_password,
+            new_teacher_confirm_password
         ],
         outputs=[
             teacher_message,

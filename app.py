@@ -3920,24 +3920,36 @@ def dataframe_to_excel(
         return None
 
     try:
-        if not isinstance(dataframe, pd.DataFrame):
-            dataframe = pd.DataFrame(dataframe)
-    except Exception:
+
+        if isinstance(dataframe, pd.DataFrame):
+            df = dataframe.copy()
+        else:
+            df = pd.DataFrame(dataframe)
+
+    except Exception as e:
+
+        print("DataFrame conversion error:", e)
         return None
 
-    if dataframe.empty:
+    if df.empty:
+        print("Excel error: DataFrame is empty")
         return None
 
-    safe_prefix = clean_name(filename_prefix)
+    safe_prefix = clean_name(
+        filename_prefix
+    )
 
     if not safe_prefix:
         safe_prefix = "school_marks"
 
     temp_path = os.path.join(
         tempfile.gettempdir(),
-        safe_prefix + "_" +
-        datetime.now().strftime("%Y%m%d_%H%M%S") +
-        ".xlsx"
+        safe_prefix
+        + "_"
+        + datetime.now().strftime(
+            "%Y%m%d_%H%M%S_%f"
+        )
+        + ".xlsx"
     )
 
     try:
@@ -3947,19 +3959,35 @@ def dataframe_to_excel(
             engine="openpyxl",
         ) as writer:
 
-            dataframe.to_excel(
+            df.to_excel(
                 writer,
                 index=False,
                 sheet_name="Marks",
             )
 
-        return temp_path
+        print(
+            "Excel file created:",
+            temp_path
+        )
 
-    except Exception:
+        if os.path.exists(temp_path):
+
+            return temp_path
+
+        return None
+
+    except Exception as e:
+
+        print(
+            "Excel creation error:",
+            e
+        )
 
         try:
+
             if os.path.exists(temp_path):
                 os.remove(temp_path)
+
         except Exception:
             pass
 

@@ -3533,14 +3533,10 @@ def save_mobile_marks(
 
 # ==========================================================
 # CONSOLIDATED REPORT
-# ==========================================================
-
-
-# ==========================================================
-# CONSOLIDATED REPORT
 # ONE STUDENT = ONE ROW
+# CLASS-WISE ACTUAL MARK-ENTERED SUBJECTS ONLY
 # EXAM-WISE HORIZONTAL COLUMNS
-# ZERO / UNUSED EXAMS ARE HIDDEN
+# ZERO / UNUSED EXAMS AND SUBJECTS ARE HIDDEN
 # ==========================================================
 
 
@@ -3619,10 +3615,15 @@ def generate_consolidated_report(
 
 
         # --------------------------------------------------
-        # SUBJECTS FOR THIS CLASS
+        # ALL SUBJECTS ASSIGNED TO THIS CLASS
+        #
+        # IMPORTANT:
+        # These are only the possible subjects.
+        # We will later keep ONLY subjects which
+        # actually have marks entered for this class.
         # --------------------------------------------------
 
-        subjects = (
+        class_subjects = (
             db.query(Subject)
             .join(
                 ClassSubject,
@@ -3639,7 +3640,7 @@ def generate_consolidated_report(
             .all()
         )
 
-        if not subjects:
+        if not class_subjects:
             return (
                 "❌ No subjects found for this class.",
                 pd.DataFrame(),
@@ -3685,12 +3686,11 @@ def generate_consolidated_report(
             all_exams = [exam_obj]
 
 
-        # --------------------------------------------------
-        # REMOVE EXAMS WHICH HAVE NO MARKS
-        #
-        # An exam will be shown only when at least ONE
-        # student + ONE subject contains a non-zero mark.
-        # --------------------------------------------------
+        # ==================================================
+        # STEP 1
+        # FIND EXAMS WHICH ACTUALLY HAVE MARKS
+        # FOR THIS CLASS
+        # ==================================================
 
         exams = []
 
@@ -3700,7 +3700,7 @@ def generate_consolidated_report(
 
             for student in students:
 
-                for subject in subjects:
+                for subject in class_subjects:
 
                     mark = (
                         db.query(Mark)
@@ -3716,6 +3716,7 @@ def generate_consolidated_report(
                     if mark is None:
                         continue
 
+
                     theory = safe_int(
                         mark.theory
                     )
@@ -3728,6 +3729,11 @@ def generate_consolidated_report(
                         mark.internal
                     )
 
+
+                    # --------------------------------------
+                    # ONLY NON-ZERO MARK COUNTS
+                    # --------------------------------------
+
                     if (
                         theory != 0
                         or practical != 0
@@ -3737,8 +3743,15 @@ def generate_consolidated_report(
                         exam_has_marks = True
                         break
 
+
                 if exam_has_marks:
                     break
+
+
+            # ------------------------------------------
+            # EXAM WILL BE SHOWN ONLY IF
+            # AT LEAST ONE MARK EXISTS
+            # ------------------------------------------
 
             if exam_has_marks:
                 exams.append(exam)
@@ -3757,9 +3770,124 @@ def generate_consolidated_report(
             )
 
 
+        # ==================================================
+        # STEP 2
+        # FIND ACTUAL SUBJECTS FOR EACH EXAM
+        #
+        # VERY IMPORTANT:
+        #
+        # A1 may have:
+        # Tamil
+        # English
+        # Computer Science
+        #
+        # B1 may have:
+        # Tamil
+        # English
+        # Computer Applications
+        #
+        # We DO NOT hard-code these names.
+        #
+        # The Subject Name comes directly from database.
+        #
+        # Only subjects which actually contain
+        # NON-ZERO marks for this class + exam
+        # are included.
+        # ==================================================
+
+        exam_subjects = {}
+
+        for exam in exams:
+
+            active_subjects = []
+
+            for subject in class_subjects:
+
+                subject_has_marks = False
+
+                for student in students:
+
+                    mark = (
+                        db.query(Mark)
+                        .filter_by(
+                            academic_year_id=year_id,
+                            exam_id=exam.id,
+                            student_id=student.id,
+                            subject_id=subject.id,
+                        )
+                        .first()
+                    )
+
+                    if mark is None:
+                        continue
+
+
+                    theory = safe_int(
+                        mark.theory
+                    )
+
+                    practical = safe_int(
+                        mark.practical
+                    )
+
+                    internal = safe_int(
+                        mark.internal
+                    )
+
+
+                    if (
+                        theory != 0
+                        or practical != 0
+                        or internal != 0
+                    ):
+
+                        subject_has_marks = True
+                        break
+
+
+                if subject_has_marks:
+
+                    active_subjects.append(
+                        subject
+                    )
+
+
+            # ------------------------------------------
+            # STORE ONLY ACTUAL MARK-ENTERED SUBJECTS
+            # ------------------------------------------
+
+            if active_subjects:
+
+                exam_subjects[
+                    exam.id
+                ] = active_subjects
+
+
         # --------------------------------------------------
+        # REMOVE EXAMS WHICH HAVE NO ACTIVE SUBJECTS
+        # --------------------------------------------------
+
+        exams = [
+            exam
+            for exam in exams
+            if exam.id in exam_subjects
+            and exam_subjects[exam.id]
+        ]
+
+
+        if not exams:
+
+            return (
+                "❌ No valid marks found for this "
+                "Class / Academic Year.",
+                pd.DataFrame(),
+            )
+
+
+        # ==================================================
+        # STEP 3
         # BUILD ONE ROW PER STUDENT
-        # --------------------------------------------------
+        # ==================================================
 
         report_rows = []
 
@@ -3786,7 +3914,17 @@ def generate_consolidated_report(
                 exam_total = 0
 
 
-                for subject in subjects:
+                # ------------------------------------------
+                # ONLY ACTUAL SUBJECTS FOR THIS EXAM
+                # ------------------------------------------
+
+                active_subjects = exam_subjects.get(
+                    exam.id,
+                    []
+                )
+
+
+                for subject in active_subjects:
 
                     mark = (
                         db.query(Mark)
@@ -3831,9 +3969,13 @@ def generate_consolidated_report(
 
                     # --------------------------------------------------
                     # SUBJECT NAME
+                    #
+                    # DATABASE SUBJECT NAME IS USED DIRECTLY
                     # --------------------------------------------------
 
-                    subject_name = subject.name
+                    subject_name = str(
+                        subject.name
+                    ).strip()
 
 
                     # --------------------------------------------------
@@ -3876,6 +4018,14 @@ def generate_consolidated_report(
 
                 # --------------------------------------------------
                 # EXAM TOTAL
+                #
+                # Example:
+                # QUARTER TOTAL
+                # HALF YEARLY TOTAL
+                # ANNUAL TOTAL
+                #
+                # This is the total ONLY FOR THAT EXAM.
+                # No final overall / annual total is added.
                 # --------------------------------------------------
 
                 row[
@@ -3883,12 +4033,19 @@ def generate_consolidated_report(
                 ] = exam_total
 
 
-            report_rows.append(row)
+            # --------------------------------------------------
+            # ONE STUDENT = ONE ROW
+            # --------------------------------------------------
+
+            report_rows.append(
+                row
+            )
 
 
-        # --------------------------------------------------
+        # ==================================================
+        # STEP 4
         # CREATE COLUMN ORDER
-        # --------------------------------------------------
+        # ==================================================
 
         columns = [
             "Roll No",
@@ -3898,43 +4055,66 @@ def generate_consolidated_report(
 
         for exam in exams:
 
-            for subject in subjects:
+            active_subjects = exam_subjects.get(
+                exam.id,
+                []
+            )
+
+
+            for subject in active_subjects:
+
+                subject_name = str(
+                    subject.name
+                ).strip()
+
 
                 if subject.theory:
 
                     columns.append(
                         f"{exam.name} | "
-                        f"{subject.name} | THE"
+                        f"{subject_name} | THE"
                     )
+
 
                 if subject.practical:
 
                     columns.append(
                         f"{exam.name} | "
-                        f"{subject.name} | PRA"
+                        f"{subject_name} | PRA"
                     )
+
 
                 if subject.internal:
 
                     columns.append(
                         f"{exam.name} | "
-                        f"{subject.name} | INT"
+                        f"{subject_name} | INT"
                     )
+
+
+                # ------------------------------------------
+                # SUBJECT TOTAL
+                # ------------------------------------------
 
                 columns.append(
                     f"{exam.name} | "
-                    f"{subject.name} | TOT"
+                    f"{subject_name} | TOT"
                 )
 
+
+            # ------------------------------------------
+            # EXAM TOTAL
+            # ------------------------------------------
 
             columns.append(
                 f"{exam.name} | TOTAL"
             )
 
 
-        # --------------------------------------------------
+        # ==================================================
+        # STEP 5
         # DATAFRAME
-        # --------------------------------------------------
+        # ==================================================
 
         report_df = pd.DataFrame(
             report_rows,
@@ -3942,11 +4122,13 @@ def generate_consolidated_report(
         )
 
 
-        # --------------------------------------------------
+        # ==================================================
         # ACADEMIC YEAR NAME
-        # --------------------------------------------------
+        # ==================================================
 
-        year_text = str(year_value)
+        year_text = str(
+            year_value
+        )
 
         if "|" in year_text:
 
@@ -3961,15 +4143,48 @@ def generate_consolidated_report(
             year_name = year_text
 
 
+        # ==================================================
+        # EXAM NAMES
+        # ==================================================
+
         exam_names = ", ".join(
-            exam.name
+            str(exam.name)
             for exam in exams
         )
 
 
-        # --------------------------------------------------
+        # ==================================================
+        # SUBJECT NAMES
+        # ==================================================
+
+        all_subject_names = []
+
+        for exam in exams:
+
+            for subject in exam_subjects.get(
+                exam.id,
+                []
+            ):
+
+                subject_name = str(
+                    subject.name
+                ).strip()
+
+                if subject_name not in all_subject_names:
+
+                    all_subject_names.append(
+                        subject_name
+                    )
+
+
+        subject_names_text = ", ".join(
+            all_subject_names
+        )
+
+
+        # ==================================================
         # REPORT MESSAGE
-        # --------------------------------------------------
+        # ==================================================
 
         message = (
 
@@ -3981,17 +4196,28 @@ def generate_consolidated_report(
 
             f"**Students:** {len(students)}\n\n"
 
-            f"**Subjects:** {len(subjects)}\n\n"
+            f"**Subjects with Marks:** "
+            f"{subject_names_text}\n\n"
 
-            f"**Exams with Marks:** {exam_names}\n\n"
+            f"**Exams with Marks:** "
+            f"{exam_names}\n\n"
 
             "### 📌 Structure\n\n"
 
             "**One Student = One Row**\n\n"
 
-            "**Exam → Subject → THE / PRA / INT / TOT → Exam TOTAL**\n\n"
+            "**Exam → Subject → "
+            "THE / PRA / INT / TOT → "
+            "Exam TOTAL**\n\n"
 
-            "⚠️ Exams with no entered marks are automatically hidden."
+            "⚠️ Only subjects with entered "
+            "non-zero marks are shown.\n\n"
+
+            "⚠️ Exams with no entered marks "
+            "are automatically hidden.\n\n"
+
+            "⚠️ Subject names are taken directly "
+            "from the database for the selected class."
 
         )
 

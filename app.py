@@ -4120,11 +4120,15 @@ def download_view_marks_excel(
 # CONSOLIDATED EXCEL
 # ==========================================================
 
-
+```python
 # ==========================================================
 # CONSOLIDATED EXCEL
 # ONE STUDENT = ONE ROW
-# MERGED EXAM + SUBJECT HEADINGS
+# EXAM -> SUBJECT -> COMPONENTS
+# QUARTER -> HALF -> ANNUAL
+# SUBJECT SUBTOTAL = TOT
+# QUARTER / HALF EXAM TOTAL
+# ANNUAL EXAM TOTAL HIDDEN
 # ==========================================================
 
 
@@ -4135,6 +4139,10 @@ def download_consolidated_excel(
     if table_data is None:
         return None
 
+
+    # ------------------------------------------------------
+    # CONVERT TO DATAFRAME
+    # ------------------------------------------------------
 
     try:
 
@@ -4165,22 +4173,42 @@ def download_consolidated_excel(
         return None
 
 
+    # ------------------------------------------------------
+    # TEMP FILE
+    # ------------------------------------------------------
+
     temp_path = os.path.join(
+
         tempfile.gettempdir(),
+
         "consolidated_mark_list_"
         + datetime.now().strftime(
             "%Y%m%d_%H%M%S_%f"
         )
         + ".xlsx"
+
     )
 
 
     try:
 
         from openpyxl import Workbook
-        from openpyxl.styles import Font, Alignment, Border, Side
-        from openpyxl.utils import get_column_letter
 
+        from openpyxl.styles import (
+            Font,
+            Alignment,
+            Border,
+            Side,
+        )
+
+        from openpyxl.utils import (
+            get_column_letter
+        )
+
+
+        # --------------------------------------------------
+        # WORKBOOK
+        # --------------------------------------------------
 
         wb = Workbook()
 
@@ -4190,31 +4218,58 @@ def download_consolidated_excel(
 
 
         # --------------------------------------------------
-        # BASIC STYLES
+        # BORDER
         # --------------------------------------------------
 
         thin_border = Border(
 
-            left=Side(style="thin"),
+            left=Side(
+                style="thin"
+            ),
 
-            right=Side(style="thin"),
+            right=Side(
+                style="thin"
+            ),
 
-            top=Side(style="thin"),
+            top=Side(
+                style="thin"
+            ),
 
-            bottom=Side(style="thin"),
+            bottom=Side(
+                style="thin"
+            ),
 
         )
 
 
         # --------------------------------------------------
-        # FIRST TWO FIXED COLUMNS
+        # DATA COLUMNS
+        # --------------------------------------------------
+
+        dataframe_columns = list(
+            dataframe.columns
+        )
+
+
+        if len(dataframe_columns) < 2:
+
+            return None
+
+
+        # --------------------------------------------------
+        # FIXED COLUMNS
         # --------------------------------------------------
 
         ws.merge_cells(
+
             start_row=1,
+
             start_column=1,
+
             end_row=3,
+
             end_column=1,
+
         )
 
         ws.cell(
@@ -4225,10 +4280,15 @@ def download_consolidated_excel(
 
 
         ws.merge_cells(
+
             start_row=1,
+
             start_column=2,
+
             end_row=3,
+
             end_column=2,
+
         )
 
         ws.cell(
@@ -4239,50 +4299,11 @@ def download_consolidated_excel(
 
 
         # --------------------------------------------------
-        # HEADER STYLES
+        # EXAM COLUMNS
         # --------------------------------------------------
 
-        for row in range(1, 4):
+        mark_columns = dataframe_columns[2:]
 
-            for col in range(
-                1,
-                len(dataframe.columns) + 1
-            ):
-
-                cell = ws.cell(
-                    row=row,
-                    column=col,
-                )
-
-                cell.font = Font(
-                    bold=True
-                )
-
-                cell.alignment = Alignment(
-                    horizontal="center",
-                    vertical="center",
-                    wrap_text=True,
-                )
-
-                cell.border = thin_border
-
-
-        # --------------------------------------------------
-        # EXAM / SUBJECT STRUCTURE
-        # --------------------------------------------------
-
-        current_col = 3
-
-
-        # Remove fixed columns
-        mark_columns = list(
-            dataframe.columns
-        )[2:]
-
-
-        # --------------------------------------------------
-        # PROCESS EACH EXAM
-        # --------------------------------------------------
 
         exam_groups = {}
 
@@ -4291,19 +4312,24 @@ def download_consolidated_excel(
 
             parts = str(
                 column
-            ).split(" | ")
+            ).split(
+                " | "
+            )
 
 
             if len(parts) < 2:
                 continue
 
 
-            exam_name = parts[0]
+            exam_name = parts[0].strip()
 
 
             if exam_name not in exam_groups:
 
-                exam_groups[exam_name] = []
+                exam_groups[
+                    exam_name
+                ] = []
+
 
             exam_groups[
                 exam_name
@@ -4313,13 +4339,92 @@ def download_consolidated_excel(
 
 
         # --------------------------------------------------
+        # EXAM ORDER
+        #
+        # QUARTER -> HALF -> ANNUAL
+        #
+        # Other exams will come afterwards.
+        # --------------------------------------------------
+
+        preferred_order = [
+
+            "QUARTER",
+
+            "QUARTERLY",
+
+            "HALF",
+
+            "HALF YEARLY",
+
+            "HALF-YEARLY",
+
+            "HALFYEARLY",
+
+            "ANNUAL",
+
+            "YEARLY",
+
+        ]
+
+
+        def exam_sort_key(
+            exam_name
+        ):
+
+            name = str(
+                exam_name
+            ).strip().upper()
+
+
+            for index, value in enumerate(
+                preferred_order
+            ):
+
+                if name == value:
+
+                    return (
+                        index,
+                        name,
+                    )
+
+
+            # Unknown exams after standard exams
+
+            return (
+                100,
+                name,
+            )
+
+
+        sorted_exam_names = sorted(
+
+            exam_groups.keys(),
+
+            key=exam_sort_key,
+
+        )
+
+
+        # --------------------------------------------------
         # CREATE HEADERS
         # --------------------------------------------------
 
-        for exam_name, exam_columns in exam_groups.items():
+        current_col = 3
+
+
+        for exam_name in sorted_exam_names:
+
+            exam_columns = exam_groups[
+                exam_name
+            ]
+
 
             exam_start = current_col
 
+
+            # --------------------------------------------------
+            # SUBJECT GROUPS
+            # --------------------------------------------------
 
             subject_groups = {}
 
@@ -4328,16 +4433,28 @@ def download_consolidated_excel(
 
                 parts = str(
                     column
-                ).split(" | ")
+                ).split(
+                    " | "
+                )
 
 
-                # Exam TOTAL
+                # --------------------------------------------------
+                # EXAM TOTAL
+                # Example:
+                # QUARTER | TOTAL
+                # --------------------------------------------------
+
                 if len(parts) == 2:
 
                     continue
 
 
-                subject_name = parts[1]
+                if len(parts) < 3:
+
+                    continue
+
+
+                subject_name = parts[1].strip()
 
 
                 if subject_name not in subject_groups:
@@ -4346,9 +4463,12 @@ def download_consolidated_excel(
                         subject_name
                     ] = []
 
+
                 subject_groups[
                     subject_name
-                ].append(column)
+                ].append(
+                    column
+                )
 
 
             # --------------------------------------------------
@@ -4359,28 +4479,58 @@ def download_consolidated_excel(
 
                 subject_start = current_col
 
+
+                # --------------------------------------------------
+                # COMPONENTS
+                # --------------------------------------------------
+
                 for column in subject_columns:
 
                     parts = str(
                         column
-                    ).split(" | "
+                    ).split(
+                        " | "
                     )
 
-                    component = parts[-1]
+
+                    component = parts[-1].strip()
+
 
                     ws.cell(
+
                         row=3,
+
                         column=current_col,
+
                         value=component,
+
                     )
+
 
                     current_col += 1
 
 
-                subject_end = current_col - 1
+                subject_end = (
+                    current_col - 1
+                )
 
+
+                # --------------------------------------------------
+                # SUBJECT NAME
+                # --------------------------------------------------
 
                 if subject_end >= subject_start:
+
+                    ws.cell(
+
+                        row=2,
+
+                        column=subject_start,
+
+                        value=subject_name,
+
+                    )
+
 
                     if subject_end > subject_start:
 
@@ -4396,56 +4546,113 @@ def download_consolidated_excel(
 
                         )
 
-                    ws.cell(
-                        row=2,
-                        column=subject_start,
-                        value=subject_name,
-                    )
-
 
             # --------------------------------------------------
             # EXAM TOTAL
+            #
+            # QUARTER + HALF:
+            #     SHOW TOTAL
+            #
+            # ANNUAL:
+            #     DO NOT SHOW TOTAL
             # --------------------------------------------------
 
+            exam_upper = str(
+                exam_name
+            ).strip().upper()
+
+
+            is_annual = (
+
+                exam_upper == "ANNUAL"
+
+                or
+                exam_upper == "YEARLY"
+
+            )
+
+
             total_column = None
+
 
             for column in exam_columns:
 
                 parts = str(
                     column
-                ).split(" | ")
+                ).split(
+                    " | "
+                )
+
 
                 if len(parts) == 2:
 
-                    total_column = column
-                    break
+                    if (
+                        parts[1]
+                        .strip()
+                        .upper()
+                        == "TOTAL"
+                    ):
+
+                        total_column = column
+
+                        break
 
 
-            if total_column:
+            # --------------------------------------------------
+            # ADD EXAM TOTAL ONLY IF NOT ANNUAL
+            # --------------------------------------------------
+
+            if (
+                total_column is not None
+                and not is_annual
+            ):
 
                 ws.cell(
+
                     row=2,
+
                     column=current_col,
+
                     value="TOTAL",
+
                 )
 
+
                 ws.cell(
+
                     row=3,
+
                     column=current_col,
+
                     value="",
+
                 )
+
 
                 current_col += 1
 
 
-            exam_end = current_col - 1
-
-
             # --------------------------------------------------
-            # MERGE EXAM HEADING
+            # EXAM HEADING
             # --------------------------------------------------
+
+            exam_end = (
+                current_col - 1
+            )
+
 
             if exam_end >= exam_start:
+
+                ws.cell(
+
+                    row=1,
+
+                    column=exam_start,
+
+                    value=exam_name,
+
+                )
+
 
                 if exam_end > exam_start:
 
@@ -4461,58 +4668,255 @@ def download_consolidated_excel(
 
                     )
 
-                ws.cell(
-                    row=1,
-                    column=exam_start,
-                    value=exam_name,
+
+        # --------------------------------------------------
+        # HEADER STYLE
+        # --------------------------------------------------
+
+        for row in range(
+            1,
+            4
+        ):
+
+            for col in range(
+                1,
+                current_col
+            ):
+
+                cell = ws.cell(
+
+                    row=row,
+
+                    column=col,
+
                 )
+
+
+                cell.font = Font(
+                    bold=True
+                )
+
+
+                cell.alignment = Alignment(
+
+                    horizontal="center",
+
+                    vertical="center",
+
+                    wrap_text=True,
+
+                )
+
+
+                cell.border = thin_border
 
 
         # --------------------------------------------------
         # WRITE STUDENT DATA
+        #
+        # IMPORTANT:
+        # DataFrame already contains ONE ROW
+        # PER STUDENT.
+        #
+        # Annual TOTAL is skipped while writing
+        # because its Excel column does not exist.
         # --------------------------------------------------
 
         data_start_row = 4
 
 
+        # --------------------------------------------------
+        # CREATE EXCEL COLUMN MAP
+        # --------------------------------------------------
+
+        excel_columns = [
+
+            "Roll No",
+
+            "Student Name",
+
+        ]
+
+
+        current_excel_col = 3
+
+
+        for exam_name in sorted_exam_names:
+
+            exam_columns = exam_groups[
+                exam_name
+            ]
+
+
+            subject_groups = {}
+
+
+            for column in exam_columns:
+
+                parts = str(
+                    column
+                ).split(
+                    " | "
+                )
+
+
+                if len(parts) < 3:
+
+                    continue
+
+
+                subject_name = parts[1].strip()
+
+
+                if subject_name not in subject_groups:
+
+                    subject_groups[
+                        subject_name
+                    ] = []
+
+
+                subject_groups[
+                    subject_name
+                ].append(
+                    column
+                )
+
+
+            for subject_name, subject_columns in subject_groups.items():
+
+                for column in subject_columns:
+
+                    excel_columns.append(
+                        column
+                    )
+
+                    current_excel_col += 1
+
+
+            exam_upper = str(
+                exam_name
+            ).strip().upper()
+
+
+            is_annual = (
+
+                exam_upper == "ANNUAL"
+
+                or
+                exam_upper == "YEARLY"
+
+            )
+
+
+            # --------------------------------------------------
+            # EXAM TOTAL ONLY FOR NON-ANNUAL
+            # --------------------------------------------------
+
+            if not is_annual:
+
+                for column in exam_columns:
+
+                    parts = str(
+                        column
+                    ).split(
+                        " | "
+                    )
+
+
+                    if len(parts) == 2:
+
+                        if (
+                            parts[1]
+                            .strip()
+                            .upper()
+                            == "TOTAL"
+                        ):
+
+                            excel_columns.append(
+                                column
+                            )
+
+                            current_excel_col += 1
+
+                            break
+
+
+        # --------------------------------------------------
+        # WRITE DATA
+        # --------------------------------------------------
+
         for row_index, row_data in enumerate(
+
             dataframe.itertuples(
+
                 index=False,
+
                 name=None,
+
             ),
+
             start=data_start_row,
+
         ):
 
-            for col_index, value in enumerate(
-                row_data,
+            data_dict = dict(
+                zip(
+                    dataframe_columns,
+                    row_data
+                )
+            )
+
+
+            for col_index, column_name in enumerate(
+
+                excel_columns,
+
                 start=1,
+
             ):
 
+                value = data_dict.get(
+                    column_name,
+                    ""
+                )
+
+
                 ws.cell(
+
                     row=row_index,
+
                     column=col_index,
+
                     value=value,
+
                 )
 
 
         # --------------------------------------------------
-        # BORDER + ALIGNMENT FOR ALL CELLS
+        # BORDER + ALIGNMENT
         # --------------------------------------------------
 
         max_row = ws.max_row
+
         max_column = ws.max_column
 
 
         for row in ws.iter_rows(
+
             min_row=1,
+
             max_row=max_row,
+
             min_col=1,
+
             max_col=max_column,
+
         ):
 
             for cell in row:
 
                 cell.border = thin_border
+
 
                 cell.alignment = Alignment(
 
@@ -4526,20 +4930,29 @@ def download_consolidated_excel(
 
 
         # --------------------------------------------------
-        # MAKE STUDENT NAME LEFT ALIGNED
+        # STUDENT NAME LEFT ALIGN
         # --------------------------------------------------
 
         for row in range(
+
             4,
+
             max_row + 1
+
         ):
 
             ws.cell(
+
                 row=row,
+
                 column=2,
+
             ).alignment = Alignment(
+
                 horizontal="left",
+
                 vertical="center",
+
             )
 
 
@@ -4547,14 +4960,22 @@ def download_consolidated_excel(
         # COLUMN WIDTH
         # --------------------------------------------------
 
-        ws.column_dimensions["A"].width = 12
+        ws.column_dimensions[
+            "A"
+        ].width = 12
 
-        ws.column_dimensions["B"].width = 24
+
+        ws.column_dimensions[
+            "B"
+        ].width = 24
 
 
         for col in range(
+
             3,
+
             max_column + 1
+
         ):
 
             ws.column_dimensions[
@@ -4566,15 +4987,23 @@ def download_consolidated_excel(
         # ROW HEIGHT
         # --------------------------------------------------
 
-        ws.row_dimensions[1].height = 28
+        ws.row_dimensions[
+            1
+        ].height = 28
 
-        ws.row_dimensions[2].height = 30
 
-        ws.row_dimensions[3].height = 25
+        ws.row_dimensions[
+            2
+        ].height = 30
+
+
+        ws.row_dimensions[
+            3
+        ].height = 25
 
 
         # --------------------------------------------------
-        # FREEZE STUDENT IDENTIFICATION
+        # FREEZE PANES
         # --------------------------------------------------
 
         ws.freeze_panes = "C4"
@@ -4588,6 +5017,10 @@ def download_consolidated_excel(
             temp_path
         )
 
+
+        # --------------------------------------------------
+        # CHECK FILE
+        # --------------------------------------------------
 
         if os.path.exists(
             temp_path
@@ -4606,6 +5039,7 @@ def download_consolidated_excel(
             e
         )
 
+
         try:
 
             if os.path.exists(
@@ -4617,10 +5051,12 @@ def download_consolidated_excel(
                 )
 
         except Exception:
+
             pass
 
 
         return None
+
 
 
 # ==========================================================

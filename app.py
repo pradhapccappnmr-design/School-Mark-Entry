@@ -1574,7 +1574,7 @@ def add_student(
             "❌ Admission No is required.",
             get_student_list(),
             gr.Dropdown(
-                choices=get_student_delete_choices(),
+                choices= choices=get_student_delete_choices_for_class(class_value),
                 value=None,
             ),
         )
@@ -1586,7 +1586,7 @@ def add_student(
             "❌ Student Name is required.",
             get_student_list(),
             gr.Dropdown(
-                choices=get_student_delete_choices(),
+                choices=get_student_delete_choices_for_class(class_value),
                 value=None,
             ),
         )
@@ -1598,7 +1598,7 @@ def add_student(
             "❌ Please select Class.",
             get_student_list(),
             gr.Dropdown(
-                choices=get_student_delete_choices(),
+                choices=get_student_delete_choices_for_class(class_value),
                 value=None,
             ),
         )
@@ -1620,7 +1620,7 @@ def add_student(
                 "❌ Selected Class not found.",
                 get_student_list(),
                 gr.Dropdown(
-                    choices=get_student_delete_choices(),
+                    choices=get_student_delete_choices_for_class(class_value),
                     value=None,
                 ),
             )
@@ -1651,7 +1651,7 @@ def add_student(
                     "✅ Student restored successfully.",
                     get_student_list(),
                     gr.Dropdown(
-                        choices=get_student_delete_choices(),
+                        choices=get_student_delete_choices_for_class(class_value),
                         value=None,
                     ),
                 )
@@ -1661,7 +1661,7 @@ def add_student(
                 "❌ This Admission No already exists.",
                 get_student_list(),
                 gr.Dropdown(
-                    choices=get_student_delete_choices(),
+                    choices=get_student_delete_choices_for_class(class_value),
                     value=None,
                 ),
             )
@@ -1691,7 +1691,7 @@ def add_student(
             "✅ Student added successfully.",
             get_student_list(),
             gr.Dropdown(
-                choices=get_student_delete_choices(),
+                choices=get_student_delete_choices_for_class(class_value),
                 value=None,
             ),
         )
@@ -1705,7 +1705,7 @@ def add_student(
             "❌ Error: " + str(e),
             get_student_list(),
             gr.Dropdown(
-                choices=get_student_delete_choices(),
+                choices=get_student_delete_choices_for_class(class_value),
                 value=None,
             ),
         )
@@ -1714,20 +1714,89 @@ def add_student(
 
         db.close()
 
+# ==========================================================
+# STUDENT DELETE DROPDOWN - CLASS WISE
+# ==========================================================
 
+def get_student_delete_choices_for_class(
+    class_value
+):
+
+    class_id = parse_id(
+        class_value
+    )
+
+    if not class_id:
+        return []
+
+    db = SessionLocal()
+
+    try:
+
+        students = (
+            db.query(Student)
+            .filter(
+                Student.class_id == class_id,
+                Student.active == True,
+            )
+            .order_by(
+                Student.roll_no,
+                Student.name,
+            )
+            .all()
+        )
+
+        return [
+            (
+                f"{student.roll_no or '-'} - "
+                f"{student.name} "
+                f"(ID: {student.id})",
+                str(student.id),
+            )
+            for student in students
+        ]
+
+    finally:
+
+        db.close()
 # ==========================================================
 # DELETE STUDENT
 # ==========================================================
 
 
 def delete_student(
-    student_value
+    student_value,
+    class_value,
 ):
 
     student_id = parse_id(
         student_value
     )
 
+    class_id = parse_id(
+        class_value
+    )
+
+
+    # --------------------------------------------------
+    # CLASS NOT SELECTED
+    # --------------------------------------------------
+
+    if not class_id:
+
+        return (
+            "❌ Please select Class first.",
+            get_student_list(),
+            gr.Dropdown(
+                choices=[],
+                value=None,
+            ),
+        )
+
+
+    # --------------------------------------------------
+    # STUDENT NOT SELECTED
+    # --------------------------------------------------
 
     if not student_id:
 
@@ -1735,7 +1804,9 @@ def delete_student(
             "❌ Please select a Student.",
             get_student_list(),
             gr.Dropdown(
-                choices=get_student_delete_choices(),
+                choices=get_student_delete_choices_for_class(
+                    class_value
+                ),
                 value=None,
             ),
         )
@@ -1757,7 +1828,9 @@ def delete_student(
                 "❌ Student not found.",
                 get_student_list(),
                 gr.Dropdown(
-                    choices=get_student_delete_choices(),
+                    choices=get_student_delete_choices_for_class(
+                        class_value
+                    ),
                     value=None,
                 ),
             )
@@ -1769,11 +1842,17 @@ def delete_student(
                 "❌ Student is already deleted.",
                 get_student_list(),
                 gr.Dropdown(
-                    choices=get_student_delete_choices(),
+                    choices=get_student_delete_choices_for_class(
+                        class_value
+                    ),
                     value=None,
                 ),
             )
 
+
+        # --------------------------------------------------
+        # DELETE STUDENT
+        # --------------------------------------------------
 
         student.active = False
 
@@ -1785,7 +1864,9 @@ def delete_student(
             "Existing marks are preserved.",
             get_student_list(),
             gr.Dropdown(
-                choices=get_student_delete_choices(),
+                choices=get_student_delete_choices_for_class(
+                    class_value
+                ),
                 value=None,
             ),
         )
@@ -1799,7 +1880,9 @@ def delete_student(
             "❌ Error: " + str(e),
             get_student_list(),
             gr.Dropdown(
-                choices=get_student_delete_choices(),
+                choices=get_student_delete_choices_for_class(
+                    class_value
+                ),
                 value=None,
             ),
         )
@@ -1807,7 +1890,6 @@ def delete_student(
     finally:
 
         db.close()
-
 
 # ==========================================================
 # ADD ACADEMIC YEAR
@@ -6479,22 +6561,40 @@ use **Ctrl + P** in your browser to print.
 
     delete_student_button.click(
 
-        delete_student,
+    delete_student,
 
-        inputs=delete_student_select,
+    inputs=[
+        delete_student_select,
+        student_class,
+    ],
 
-        outputs=[
+    outputs=[
 
-            student_message,
+        student_message,
+        student_table,
+        delete_student_select,
 
-            student_table,
-
-            delete_student_select,
-
-        ],
+    ],
 
     )
+# --------------------------------------------------
+# CLASS CHANGE → LOAD STUDENTS FOR DELETE
+# --------------------------------------------------
 
+    student_class.change(
+
+    lambda class_value: gr.Dropdown(
+        choices=get_student_delete_choices_for_class(
+            class_value
+        ),
+        value=None,
+    ),
+
+    inputs=student_class,
+
+    outputs=delete_student_select,
+
+    )
 
     # ======================================================
     # MASTER DATA EVENTS

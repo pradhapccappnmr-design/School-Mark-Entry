@@ -5370,8 +5370,7 @@ def download_consolidated_excel(
 # ==========================================================
 # LOGIN
 # ==========================================================
-
-
+                    
 def login(
     username,
     password,
@@ -5385,17 +5384,24 @@ def login(
         password or ""
     )
 
-
+            
     if not username or not password:
 
         return (
             "❌ Enter username and password.",
+
             gr.update(
                 visible=False
             ),
+
             gr.update(
                 visible=False
             ),
+
+            gr.update(
+                visible=False
+            ),
+
             gr.update(
                 visible=False
             ),
@@ -5420,12 +5426,19 @@ def login(
 
             return (
                 "❌ Invalid username or password.",
+
                 gr.update(
                     visible=False
                 ),
+
                 gr.update(
                     visible=False
                 ),
+
+                gr.update(
+                    visible=False
+                ),
+
                 gr.update(
                     visible=False
                 ),
@@ -5439,12 +5452,19 @@ def login(
 
             return (
                 "❌ Invalid username or password.",
+
                 gr.update(
                     visible=False
                 ),
+
                 gr.update(
                     visible=False
                 ),
+
+                gr.update(
+                    visible=False
+                ),
+
                 gr.update(
                     visible=False
                 ),
@@ -5475,16 +5495,26 @@ def login(
         return (
             message,
 
+            # Application
             gr.update(
                 visible=True
             ),
 
+            # Master Data
             gr.update(
                 visible=is_admin
             ),
 
+            # Student Management
+            # Admin + Teacher
             gr.update(
-                visible=is_admin
+                visible=True
+            ),
+
+            # Mark Entry
+            # Admin + Teacher
+            gr.update(
+                visible=True
             ),
         )
 
@@ -5592,7 +5622,7 @@ with gr.Blocks(
 
             with gr.Tab(
                 "⚙️ Master Data",
-                visible=True,
+                visible=False,
             ) as master_data_tab:
 
 
@@ -5940,7 +5970,7 @@ Teacher accounts can use **Mark Entry, View Marks and Consolidated Report**, but
 
             with gr.Tab(
                 "👨‍🎓 Student Management",
-                visible=True,
+                visible=False,
             ) as student_management_tab:
 
 
@@ -6015,8 +6045,9 @@ Teacher accounts can use **Mark Entry, View Marks and Consolidated Report**, but
             # ==================================================
 
             with gr.Tab(
-                "📝 Mark Entry"
-            ):
+                 "📝 Mark Entry",
+                visible=False,
+            ) as mark_entry_tab:
 
                 gr.Markdown(
                     "## 📝 Mark Entry"
@@ -6814,31 +6845,36 @@ use **Ctrl + P** in your browser to print.
     # LOGIN EVENT
     # ======================================================
 
+
     login_button.click(
 
-        login,
+    login,
 
-        inputs=[
+    inputs=[
 
-            username,
+        username,
 
-            password,
+        password,
 
-        ],
+    ],
 
-        outputs=[
+    outputs=[
 
-            login_message,
+        login_message,
 
-            application,
+        application,
 
-            master_data_tab,
+        master_data_tab,
 
-            student_management_tab,
+        student_management_tab,
 
-        ],
+        mark_entry_tab,
 
-    )
+    ],
+
+)
+
+
 
 
     # ======================================================

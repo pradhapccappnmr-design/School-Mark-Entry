@@ -4120,7 +4120,7 @@ def download_view_marks_excel(
 # CONSOLIDATED EXCEL
 # ==========================================================
 
-```python
+
 # ==========================================================
 # CONSOLIDATED EXCEL
 # ONE STUDENT = ONE ROW

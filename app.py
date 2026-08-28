@@ -3536,48 +3536,48 @@ def save_mobile_marks(
 # ==========================================================
 
 
+# ==========================================================
+# CONSOLIDATED REPORT
+# ONE STUDENT = ONE ROW
+# EXAM-WISE HORIZONTAL COLUMNS
+# ZERO / UNUSED EXAMS ARE HIDDEN
+# ==========================================================
+
+
 def generate_consolidated_report(
     year_value,
     class_value,
     exam_value,
 ):
 
-    year_id = parse_id(
-        year_value
-    )
-
-    class_id = parse_id(
-        class_value
-    )
-
+    year_id = parse_id(year_value)
+    class_id = parse_id(class_value)
 
     if not year_id:
-
         return (
             "❌ Please select Academic Year.",
             pd.DataFrame(),
         )
 
-
     if not class_id:
-
         return (
             "❌ Please select Class.",
             pd.DataFrame(),
         )
 
-
     if not exam_value:
-
         return (
             "❌ Please select Exam.",
             pd.DataFrame(),
         )
 
-
     db = SessionLocal()
 
     try:
+
+        # --------------------------------------------------
+        # CLASS
+        # --------------------------------------------------
 
         class_obj = (
             db.query(ClassSection)
@@ -3587,14 +3587,16 @@ def generate_consolidated_report(
             .first()
         )
 
-
         if class_obj is None:
-
             return (
                 "❌ Class not found.",
                 pd.DataFrame(),
             )
 
+
+        # --------------------------------------------------
+        # ACTIVE STUDENTS
+        # --------------------------------------------------
 
         students = (
             db.query(Student)
@@ -3609,14 +3611,16 @@ def generate_consolidated_report(
             .all()
         )
 
-
         if not students:
-
             return (
                 "❌ No students found in this class.",
                 pd.DataFrame(),
             )
 
+
+        # --------------------------------------------------
+        # SUBJECTS FOR THIS CLASS
+        # --------------------------------------------------
 
         subjects = (
             db.query(Subject)
@@ -3630,25 +3634,25 @@ def generate_consolidated_report(
                 Subject.active == True,
             )
             .order_by(
-                Subject.name
+                Subject.id
             )
             .all()
         )
 
-
         if not subjects:
-
             return (
                 "❌ No subjects found for this class.",
                 pd.DataFrame(),
             )
 
 
-        if str(
-            exam_value
-        ).startswith("ALL"):
+        # --------------------------------------------------
+        # FIND SELECTED EXAMS
+        # --------------------------------------------------
 
-            exams = (
+        if str(exam_value).startswith("ALL"):
+
+            all_exams = (
                 db.query(Exam)
                 .filter(
                     Exam.active == True
@@ -3661,9 +3665,7 @@ def generate_consolidated_report(
 
         else:
 
-            exam_id = parse_id(
-                exam_value
-            )
+            exam_id = parse_id(exam_value)
 
             exam_obj = (
                 db.query(Exam)
@@ -3674,32 +3676,110 @@ def generate_consolidated_report(
                 .first()
             )
 
-
             if exam_obj is None:
-
                 return (
                     "❌ Exam not found.",
                     pd.DataFrame(),
                 )
 
+            all_exams = [exam_obj]
 
-            exams = [
-                exam_obj
-            ]
 
+        # --------------------------------------------------
+        # REMOVE EXAMS WHICH HAVE NO MARKS
+        #
+        # An exam will be shown only when at least ONE
+        # student + ONE subject contains a non-zero mark.
+        # --------------------------------------------------
+
+        exams = []
+
+        for exam in all_exams:
+
+            exam_has_marks = False
+
+            for student in students:
+
+                for subject in subjects:
+
+                    mark = (
+                        db.query(Mark)
+                        .filter_by(
+                            academic_year_id=year_id,
+                            exam_id=exam.id,
+                            student_id=student.id,
+                            subject_id=subject.id,
+                        )
+                        .first()
+                    )
+
+                    if mark is None:
+                        continue
+
+                    theory = safe_int(
+                        mark.theory
+                    )
+
+                    practical = safe_int(
+                        mark.practical
+                    )
+
+                    internal = safe_int(
+                        mark.internal
+                    )
+
+                    if (
+                        theory != 0
+                        or practical != 0
+                        or internal != 0
+                    ):
+
+                        exam_has_marks = True
+                        break
+
+                if exam_has_marks:
+                    break
+
+            if exam_has_marks:
+                exams.append(exam)
+
+
+        # --------------------------------------------------
+        # NO EXAM HAS MARKS
+        # --------------------------------------------------
 
         if not exams:
 
             return (
-                "❌ No exams found.",
+                "❌ No marks have been entered for this "
+                "Class / Academic Year.",
                 pd.DataFrame(),
             )
 
+
+        # --------------------------------------------------
+        # BUILD ONE ROW PER STUDENT
+        # --------------------------------------------------
 
         report_rows = []
 
 
         for student in students:
+
+            row = {
+
+                "Roll No":
+                    student.roll_no or "",
+
+                "Student Name":
+                    student.name,
+
+            }
+
+
+            # --------------------------------------------------
+            # EACH EXAM GOES HORIZONTALLY
+            # --------------------------------------------------
 
             for exam in exams:
 
@@ -3721,137 +3801,164 @@ def generate_consolidated_report(
 
 
                     theory = (
-                        mark.theory
+                        safe_int(mark.theory)
                         if mark
                         else 0
                     )
 
                     practical = (
-                        mark.practical
+                        safe_int(mark.practical)
                         if mark
                         else 0
                     )
 
                     internal = (
-                        mark.internal
+                        safe_int(mark.internal)
                         if mark
                         else 0
                     )
 
 
-                    total = (
+                    subject_total = (
                         theory
                         + practical
                         + internal
                     )
 
 
-                    exam_total += total
+                    exam_total += subject_total
 
 
-                    report_rows.append({
+                    # --------------------------------------------------
+                    # SUBJECT NAME
+                    # --------------------------------------------------
 
-                        "Roll No":
-                            student.roll_no or "",
-
-                        "Student Name":
-                            student.name,
-
-                        "Subject":
-                            subject.name,
-
-                        "Exam":
-                            exam.name,
-
-                        "Theory":
-                            theory
-                            if subject.theory
-                            else "",
-
-                        "Practical":
-                            practical
-                            if subject.practical
-                            else "",
-
-                        "Internal":
-                            internal
-                            if subject.internal
-                            else "",
-
-                        "Subject Total":
-                            total,
-
-                    })
+                    subject_name = subject.name
 
 
-                report_rows.append({
+                    # --------------------------------------------------
+                    # SUBJECT COMPONENTS
+                    # --------------------------------------------------
 
-                    "Roll No":
-                        student.roll_no or "",
+                    if subject.theory:
 
-                    "Student Name":
-                        student.name,
+                        row[
+                            f"{exam.name} | "
+                            f"{subject_name} | THE"
+                        ] = theory
 
-                    "Subject":
-                        "EXAM TOTAL",
 
-                    "Exam":
-                        exam.name,
+                    if subject.practical:
 
-                    "Theory":
-                        "",
+                        row[
+                            f"{exam.name} | "
+                            f"{subject_name} | PRA"
+                        ] = practical
 
-                    "Practical":
-                        "",
 
-                    "Internal":
-                        "",
+                    if subject.internal:
 
-                    "Subject Total":
-                        exam_total,
+                        row[
+                            f"{exam.name} | "
+                            f"{subject_name} | INT"
+                        ] = internal
 
-                })
 
+                    # --------------------------------------------------
+                    # SUBJECT SUBTOTAL
+                    # --------------------------------------------------
+
+                    row[
+                        f"{exam.name} | "
+                        f"{subject_name} | TOT"
+                    ] = subject_total
+
+
+                # --------------------------------------------------
+                # EXAM TOTAL
+                # --------------------------------------------------
+
+                row[
+                    f"{exam.name} | TOTAL"
+                ] = exam_total
+
+
+            report_rows.append(row)
+
+
+        # --------------------------------------------------
+        # CREATE COLUMN ORDER
+        # --------------------------------------------------
+
+        columns = [
+            "Roll No",
+            "Student Name",
+        ]
+
+
+        for exam in exams:
+
+            for subject in subjects:
+
+                if subject.theory:
+
+                    columns.append(
+                        f"{exam.name} | "
+                        f"{subject.name} | THE"
+                    )
+
+                if subject.practical:
+
+                    columns.append(
+                        f"{exam.name} | "
+                        f"{subject.name} | PRA"
+                    )
+
+                if subject.internal:
+
+                    columns.append(
+                        f"{exam.name} | "
+                        f"{subject.name} | INT"
+                    )
+
+                columns.append(
+                    f"{exam.name} | "
+                    f"{subject.name} | TOT"
+                )
+
+
+            columns.append(
+                f"{exam.name} | TOTAL"
+            )
+
+
+        # --------------------------------------------------
+        # DATAFRAME
+        # --------------------------------------------------
 
         report_df = pd.DataFrame(
-
             report_rows,
-
-            columns=[
-
-                "Roll No",
-
-                "Student Name",
-
-                "Subject",
-
-                "Exam",
-
-                "Theory",
-
-                "Practical",
-
-                "Internal",
-
-                "Subject Total",
-
-            ],
-
+            columns=columns,
         )
 
 
-        year_name = (
+        # --------------------------------------------------
+        # ACADEMIC YEAR NAME
+        # --------------------------------------------------
 
-            str(year_value)
-            .split("|", 1)[1]
-            .strip()
+        year_text = str(year_value)
 
-            if "|"
-            in str(year_value)
+        if "|" in year_text:
 
-            else str(year_value)
+            year_name = (
+                year_text
+                .split("|", 1)[1]
+                .strip()
+            )
 
-        )
+        else:
+
+            year_name = year_text
 
 
         exam_names = ", ".join(
@@ -3860,29 +3967,31 @@ def generate_consolidated_report(
         )
 
 
+        # --------------------------------------------------
+        # REPORT MESSAGE
+        # --------------------------------------------------
+
         message = (
 
             "### 📊 Consolidated Mark List\n\n"
 
-            f"**Academic Year:** "
-            f"{year_name}\n\n"
+            f"**Academic Year:** {year_name}\n\n"
 
-            f"**Class:** "
-            f"{class_obj.name}\n\n"
+            f"**Class:** {class_obj.name}\n\n"
 
-            f"**Students:** "
-            f"{len(students)}\n\n"
+            f"**Students:** {len(students)}\n\n"
 
-            f"**Subjects:** "
-            f"{len(subjects)}\n\n"
+            f"**Subjects:** {len(subjects)}\n\n"
 
-            f"**Exams:** "
-            f"{exam_names}\n\n"
+            f"**Exams with Marks:** {exam_names}\n\n"
 
-            "### 📌 Report Structure\n\n"
+            "### 📌 Structure\n\n"
 
-            "**Roll No → Student → Subject → Exam "
-            "→ Theory → Practical → Internal → Total**"
+            "**One Student = One Row**\n\n"
+
+            "**Exam → Subject → THE / PRA / INT / TOT → Exam TOTAL**\n\n"
+
+            "⚠️ Exams with no entered marks are automatically hidden."
 
         )
 
@@ -3904,7 +4013,6 @@ def generate_consolidated_report(
     finally:
 
         db.close()
-
 
 # ==========================================================
 # EXCEL DOWNLOAD HELPERS
@@ -4013,12 +4121,20 @@ def download_view_marks_excel(
 # ==========================================================
 
 
+# ==========================================================
+# CONSOLIDATED EXCEL
+# ONE STUDENT = ONE ROW
+# MERGED EXAM + SUBJECT HEADINGS
+# ==========================================================
+
+
 def download_consolidated_excel(
     table_data
 ):
 
     if table_data is None:
         return None
+
 
     try:
 
@@ -4035,7 +4151,12 @@ def download_consolidated_excel(
                 table_data
             )
 
-    except Exception:
+    except Exception as e:
+
+        print(
+            "DataFrame conversion error:",
+            e
+        )
 
         return None
 
@@ -4048,7 +4169,7 @@ def download_consolidated_excel(
         tempfile.gettempdir(),
         "consolidated_mark_list_"
         + datetime.now().strftime(
-            "%Y%m%d_%H%M%S"
+            "%Y%m%d_%H%M%S_%f"
         )
         + ".xlsx"
     )
@@ -4056,27 +4177,448 @@ def download_consolidated_excel(
 
     try:
 
-        with pd.ExcelWriter(
-            temp_path,
-            engine="openpyxl",
-        ) as writer:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
 
-            dataframe.to_excel(
-                writer,
-                index=False,
-                sheet_name="Consolidated Marks",
+
+        wb = Workbook()
+
+        ws = wb.active
+
+        ws.title = "Consolidated Marks"
+
+
+        # --------------------------------------------------
+        # BASIC STYLES
+        # --------------------------------------------------
+
+        thin_border = Border(
+
+            left=Side(style="thin"),
+
+            right=Side(style="thin"),
+
+            top=Side(style="thin"),
+
+            bottom=Side(style="thin"),
+
+        )
+
+
+        # --------------------------------------------------
+        # FIRST TWO FIXED COLUMNS
+        # --------------------------------------------------
+
+        ws.merge_cells(
+            start_row=1,
+            start_column=1,
+            end_row=3,
+            end_column=1,
+        )
+
+        ws.cell(
+            row=1,
+            column=1,
+            value="Roll No",
+        )
+
+
+        ws.merge_cells(
+            start_row=1,
+            start_column=2,
+            end_row=3,
+            end_column=2,
+        )
+
+        ws.cell(
+            row=1,
+            column=2,
+            value="Student Name",
+        )
+
+
+        # --------------------------------------------------
+        # HEADER STYLES
+        # --------------------------------------------------
+
+        for row in range(1, 4):
+
+            for col in range(
+                1,
+                len(dataframe.columns) + 1
+            ):
+
+                cell = ws.cell(
+                    row=row,
+                    column=col,
+                )
+
+                cell.font = Font(
+                    bold=True
+                )
+
+                cell.alignment = Alignment(
+                    horizontal="center",
+                    vertical="center",
+                    wrap_text=True,
+                )
+
+                cell.border = thin_border
+
+
+        # --------------------------------------------------
+        # EXAM / SUBJECT STRUCTURE
+        # --------------------------------------------------
+
+        current_col = 3
+
+
+        # Remove fixed columns
+        mark_columns = list(
+            dataframe.columns
+        )[2:]
+
+
+        # --------------------------------------------------
+        # PROCESS EACH EXAM
+        # --------------------------------------------------
+
+        exam_groups = {}
+
+
+        for column in mark_columns:
+
+            parts = str(
+                column
+            ).split(" | ")
+
+
+            if len(parts) < 2:
+                continue
+
+
+            exam_name = parts[0]
+
+
+            if exam_name not in exam_groups:
+
+                exam_groups[exam_name] = []
+
+            exam_groups[
+                exam_name
+            ].append(
+                column
             )
 
 
-        return temp_path
+        # --------------------------------------------------
+        # CREATE HEADERS
+        # --------------------------------------------------
+
+        for exam_name, exam_columns in exam_groups.items():
+
+            exam_start = current_col
+
+
+            subject_groups = {}
+
+
+            for column in exam_columns:
+
+                parts = str(
+                    column
+                ).split(" | ")
+
+
+                # Exam TOTAL
+                if len(parts) == 2:
+
+                    continue
+
+
+                subject_name = parts[1]
+
+
+                if subject_name not in subject_groups:
+
+                    subject_groups[
+                        subject_name
+                    ] = []
+
+                subject_groups[
+                    subject_name
+                ].append(column)
+
+
+            # --------------------------------------------------
+            # SUBJECT HEADINGS
+            # --------------------------------------------------
+
+            for subject_name, subject_columns in subject_groups.items():
+
+                subject_start = current_col
+
+                for column in subject_columns:
+
+                    parts = str(
+                        column
+                    ).split(" | "
+                    )
+
+                    component = parts[-1]
+
+                    ws.cell(
+                        row=3,
+                        column=current_col,
+                        value=component,
+                    )
+
+                    current_col += 1
+
+
+                subject_end = current_col - 1
+
+
+                if subject_end >= subject_start:
+
+                    if subject_end > subject_start:
+
+                        ws.merge_cells(
+
+                            start_row=2,
+
+                            start_column=subject_start,
+
+                            end_row=2,
+
+                            end_column=subject_end,
+
+                        )
+
+                    ws.cell(
+                        row=2,
+                        column=subject_start,
+                        value=subject_name,
+                    )
+
+
+            # --------------------------------------------------
+            # EXAM TOTAL
+            # --------------------------------------------------
+
+            total_column = None
+
+            for column in exam_columns:
+
+                parts = str(
+                    column
+                ).split(" | ")
+
+                if len(parts) == 2:
+
+                    total_column = column
+                    break
+
+
+            if total_column:
+
+                ws.cell(
+                    row=2,
+                    column=current_col,
+                    value="TOTAL",
+                )
+
+                ws.cell(
+                    row=3,
+                    column=current_col,
+                    value="",
+                )
+
+                current_col += 1
+
+
+            exam_end = current_col - 1
+
+
+            # --------------------------------------------------
+            # MERGE EXAM HEADING
+            # --------------------------------------------------
+
+            if exam_end >= exam_start:
+
+                if exam_end > exam_start:
+
+                    ws.merge_cells(
+
+                        start_row=1,
+
+                        start_column=exam_start,
+
+                        end_row=1,
+
+                        end_column=exam_end,
+
+                    )
+
+                ws.cell(
+                    row=1,
+                    column=exam_start,
+                    value=exam_name,
+                )
+
+
+        # --------------------------------------------------
+        # WRITE STUDENT DATA
+        # --------------------------------------------------
+
+        data_start_row = 4
+
+
+        for row_index, row_data in enumerate(
+            dataframe.itertuples(
+                index=False,
+                name=None,
+            ),
+            start=data_start_row,
+        ):
+
+            for col_index, value in enumerate(
+                row_data,
+                start=1,
+            ):
+
+                ws.cell(
+                    row=row_index,
+                    column=col_index,
+                    value=value,
+                )
+
+
+        # --------------------------------------------------
+        # BORDER + ALIGNMENT FOR ALL CELLS
+        # --------------------------------------------------
+
+        max_row = ws.max_row
+        max_column = ws.max_column
+
+
+        for row in ws.iter_rows(
+            min_row=1,
+            max_row=max_row,
+            min_col=1,
+            max_col=max_column,
+        ):
+
+            for cell in row:
+
+                cell.border = thin_border
+
+                cell.alignment = Alignment(
+
+                    horizontal="center",
+
+                    vertical="center",
+
+                    wrap_text=True,
+
+                )
+
+
+        # --------------------------------------------------
+        # MAKE STUDENT NAME LEFT ALIGNED
+        # --------------------------------------------------
+
+        for row in range(
+            4,
+            max_row + 1
+        ):
+
+            ws.cell(
+                row=row,
+                column=2,
+            ).alignment = Alignment(
+                horizontal="left",
+                vertical="center",
+            )
+
+
+        # --------------------------------------------------
+        # COLUMN WIDTH
+        # --------------------------------------------------
+
+        ws.column_dimensions["A"].width = 12
+
+        ws.column_dimensions["B"].width = 24
+
+
+        for col in range(
+            3,
+            max_column + 1
+        ):
+
+            ws.column_dimensions[
+                get_column_letter(col)
+            ].width = 11
+
+
+        # --------------------------------------------------
+        # ROW HEIGHT
+        # --------------------------------------------------
+
+        ws.row_dimensions[1].height = 28
+
+        ws.row_dimensions[2].height = 30
+
+        ws.row_dimensions[3].height = 25
+
+
+        # --------------------------------------------------
+        # FREEZE STUDENT IDENTIFICATION
+        # --------------------------------------------------
+
+        ws.freeze_panes = "C4"
+
+
+        # --------------------------------------------------
+        # SAVE
+        # --------------------------------------------------
+
+        wb.save(
+            temp_path
+        )
+
+
+        if os.path.exists(
+            temp_path
+        ):
+
+            return temp_path
+
+
+        return None
 
 
     except Exception as e:
 
         print(
-            "Excel creation error:",
+            "Consolidated Excel creation error:",
             e
         )
+
+        try:
+
+            if os.path.exists(
+                temp_path
+            ):
+
+                os.remove(
+                    temp_path
+                )
+
+        except Exception:
+            pass
+
 
         return None
 

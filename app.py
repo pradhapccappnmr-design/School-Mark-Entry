@@ -1574,7 +1574,7 @@ def add_student(
             "❌ Admission No is required.",
             get_student_list(),
             gr.Dropdown(
-                choices= choices=get_student_delete_choices_for_class(class_value),
+                choices=get_student_delete_choices_for_class(class_value),
                 value=None,
             ),
         )

@@ -5609,7 +5609,7 @@ with gr.Blocks(
     # ======================================================
 
     with gr.Column(
-        visible=False
+        visible=True
     ) as application:
 
 

@@ -2154,7 +2154,7 @@ def get_student_delete_choices_for_class(
     finally:
 
         db.close()
-        def bulk_import_students(file_path):
+def bulk_import_students(file_path):
 
     if not file_path:
         return (

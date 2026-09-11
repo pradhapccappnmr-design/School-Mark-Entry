@@ -1713,6 +1713,401 @@ def add_student(
     finally:
 
         db.close()
+        def bulk_import_students(file):
+
+    if file is None:
+        return (
+            "❌ Please select an Excel file.",
+            get_student_list(),
+        )
+
+    db = SessionLocal()
+
+    added_count = 0
+    restored_count = 0
+    duplicate_count = 0
+    error_count = 0
+
+    errors = []
+
+    try:
+
+        # ========================================================
+        # READ EXCEL FILE
+        # ========================================================
+
+        file_path = file
+
+        df = pd.read_excel(file_path)
+
+        # Remove extra spaces from column names
+        df.columns = [
+            str(col).strip()
+            for col in df.columns
+        ]
+
+
+        # ========================================================
+        # REQUIRED COLUMNS
+        # ========================================================
+
+        required_columns = [
+            "EMIS Id",
+            "Name",
+            "Class",
+            "Section",
+        ]
+
+        missing_columns = [
+            col
+            for col in required_columns
+            if col not in df.columns
+        ]
+
+        if missing_columns:
+
+            return (
+                "❌ Missing Excel columns: "
+                + ", ".join(missing_columns),
+                get_student_list(),
+            )
+
+
+        # ========================================================
+        # ROMAN CLASS TO NUMBER
+        # ========================================================
+
+        roman_classes = {
+
+            "I": "1",
+            "II": "2",
+            "III": "3",
+            "IV": "4",
+            "V": "5",
+            "VI": "6",
+            "VII": "7",
+            "VIII": "8",
+            "IX": "9",
+            "X": "10",
+            "XI": "11",
+            "XII": "12",
+
+        }
+
+
+        # ========================================================
+        # PROCESS EACH STUDENT
+        # ========================================================
+
+        for index, row in df.iterrows():
+
+            excel_row = index + 2
+
+            try:
+
+                # ------------------------------------------------
+                # EMIS ID → ADMISSION NUMBER
+                # ------------------------------------------------
+
+                emis_id = str(
+                    row["EMIS Id"]
+                ).strip()
+
+                if emis_id.lower() == "nan":
+                    emis_id = ""
+
+                admission_no = clean_name(
+                    emis_id
+                )
+
+
+                # ------------------------------------------------
+                # NAME
+                # ------------------------------------------------
+
+                student_name = str(
+                    row["Name"]
+                ).strip()
+
+                if student_name.lower() == "nan":
+                    student_name = ""
+
+                student_name = clean_name(
+                    student_name
+                )
+
+
+                # ------------------------------------------------
+                # CLASS
+                # XI → 11
+                # XII → 12
+                # X → 10
+                # etc.
+                # ------------------------------------------------
+
+                class_text = str(
+                    row["Class"]
+                ).strip().upper()
+
+                if class_text.lower() == "nan":
+                    class_text = ""
+
+
+                if class_text in roman_classes:
+
+                    class_number = roman_classes[
+                        class_text
+                    ]
+
+                else:
+
+                    class_number = class_text
+
+
+                # ------------------------------------------------
+                # SECTION
+                # ------------------------------------------------
+
+                section = str(
+                    row["Section"]
+                ).strip().upper()
+
+                if section.lower() == "nan":
+                    section = ""
+
+
+                # ------------------------------------------------
+                # CREATE CLASS NAME
+                #
+                # XI + C1 → 11-C1
+                # XI + AS → 11-AS
+                # ------------------------------------------------
+
+                class_name = (
+                    class_number
+                    + "-"
+                    + section
+                ).strip()
+
+
+                # ------------------------------------------------
+                # VALIDATION
+                # ------------------------------------------------
+
+                if not admission_no:
+
+                    error_count += 1
+
+                    errors.append(
+                        f"Row {excel_row}: EMIS Id is empty."
+                    )
+
+                    continue
+
+
+                if not student_name:
+
+                    error_count += 1
+
+                    errors.append(
+                        f"Row {excel_row}: Name is empty."
+                    )
+
+                    continue
+
+
+                if not class_number:
+
+                    error_count += 1
+
+                    errors.append(
+                        f"Row {excel_row}: Class is empty."
+                    )
+
+                    continue
+
+
+                if not section:
+
+                    error_count += 1
+
+                    errors.append(
+                        f"Row {excel_row}: Section is empty."
+                    )
+
+                    continue
+
+
+                # =================================================
+                # FIND CLASS
+                # =================================================
+
+                class_obj = (
+                    db.query(ClassSection)
+                    .filter(
+                        ClassSection.name
+                        == class_name
+                    )
+                    .first()
+                )
+
+
+                if class_obj is None:
+
+                    error_count += 1
+
+                    errors.append(
+                        f"Row {excel_row}: "
+                        f"Class '{class_name}' not found."
+                    )
+
+                    continue
+
+
+                class_id = class_obj.id
+
+
+                # =================================================
+                # CHECK EXISTING ADMISSION NUMBER
+                # =================================================
+
+                existing = (
+                    db.query(Student)
+                    .filter(
+                        Student.admission_no
+                        == admission_no
+                    )
+                    .first()
+                )
+
+
+                if existing:
+
+                    # ---------------------------------------------
+                    # RESTORE INACTIVE STUDENT
+                    # ---------------------------------------------
+
+                    if not existing.active:
+
+                        existing.active = True
+
+                        existing.roll_no = None
+
+                        existing.name = (
+                            student_name
+                        )
+
+                        existing.class_id = (
+                            class_id
+                        )
+
+                        restored_count += 1
+
+                        continue
+
+
+                    # ---------------------------------------------
+                    # ALREADY ACTIVE
+                    # ---------------------------------------------
+
+                    duplicate_count += 1
+
+                    continue
+
+
+                # =================================================
+                # ADD NEW STUDENT
+                # =================================================
+
+                student = Student(
+
+                    admission_no=admission_no,
+
+                    roll_no=None,
+
+                    name=student_name,
+
+                    class_id=class_id,
+
+                    active=True,
+
+                )
+
+                db.add(student)
+
+                added_count += 1
+
+
+            except Exception as row_error:
+
+                error_count += 1
+
+                errors.append(
+                    f"Row {excel_row}: "
+                    f"{str(row_error)}"
+                )
+
+
+        # ========================================================
+        # SAVE ALL CHANGES
+        # ========================================================
+
+        db.commit()
+
+
+        # ========================================================
+        # RESULT MESSAGE
+        # ========================================================
+
+        message = (
+            "✅ Bulk import completed.\n\n"
+            f"New students added: {added_count}\n"
+            f"Inactive students restored: {restored_count}\n"
+            f"Already existing: {duplicate_count}\n"
+            f"Errors: {error_count}"
+        )
+
+
+        # ========================================================
+        # SHOW FIRST ERRORS
+        # ========================================================
+
+        if errors:
+
+            message += "\n\n⚠️ Details:\n"
+
+            message += "\n".join(
+                errors[:20]
+            )
+
+            if len(errors) > 20:
+
+                message += (
+                    f"\n... and "
+                    f"{len(errors) - 20} more errors."
+                )
+
+
+        return (
+            message,
+            get_student_list(),
+        )
+
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Bulk Import Error: "
+            + str(e),
+            get_student_list(),
+        )
+
+
+    finally:
+
+        db.close()
 
 # ==========================================================
 # STUDENT DELETE DROPDOWN - CLASS WISE
@@ -1755,6 +2150,570 @@ def get_student_delete_choices_for_class(
             )
             for student in students
         ]
+
+    finally:
+
+        db.close()
+        def bulk_import_students(file_path):
+
+    if not file_path:
+        return (
+            "❌ Please upload an Excel file.",
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
+        )
+
+    db = SessionLocal()
+
+    added_count = 0
+    restored_count = 0
+    duplicate_count = 0
+    error_count = 0
+
+    messages = []
+
+    try:
+
+        # ============================================================
+        # READ EXCEL
+        # ============================================================
+
+        try:
+            df = pd.read_excel(file_path)
+        except Exception as e:
+            return (
+                "❌ Excel file could not be read.\n\n" + str(e),
+                get_student_list(),
+                gr.Dropdown(
+                    choices=get_student_delete_choices(),
+                    value=None,
+                ),
+            )
+
+        # ============================================================
+        # CLEAN COLUMN NAMES
+        # ============================================================
+
+        df.columns = [
+            str(col).strip()
+            for col in df.columns
+        ]
+
+        # Support Rool_no as well as common Roll No spellings
+        column_map = {}
+
+        for col in df.columns:
+
+            col_clean = (
+                str(col)
+                .strip()
+                .lower()
+                .replace(" ", "")
+                .replace("_", "")
+            )
+
+            if col_clean in ["emiseid", "emisis", "emiseidno"]:
+                column_map[col] = "EMIS Id"
+
+            elif col_clean == "name":
+                column_map[col] = "Name"
+
+            elif col_clean == "class":
+                column_map[col] = "Class"
+
+            elif col_clean == "section":
+                column_map[col] = "Section"
+
+            elif col_clean in [
+                "roolno",
+                "rollno",
+                "rollnumber",
+            ]:
+                column_map[col] = "Rool_no"
+
+        df = df.rename(
+            columns=column_map
+        )
+
+        # ============================================================
+        # CHECK REQUIRED COLUMNS
+        # ============================================================
+
+        required_columns = [
+            "EMIS Id",
+            "Name",
+            "Class",
+            "Section",
+            "Rool_no",
+        ]
+
+        missing_columns = [
+            col
+            for col in required_columns
+            if col not in df.columns
+        ]
+
+        if missing_columns:
+
+            return (
+                "❌ Missing Excel columns:\n\n"
+                + "\n".join(
+                    "- " + col
+                    for col in missing_columns
+                ),
+                get_student_list(),
+                gr.Dropdown(
+                    choices=get_student_delete_choices(),
+                    value=None,
+                ),
+            )
+
+        # ============================================================
+        # ROMAN CLASS CONVERSION
+        # ============================================================
+
+        roman_classes = {
+
+            "VI": "6",
+            "VII": "7",
+            "VIII": "8",
+            "IX": "9",
+            "X": "10",
+            "XI": "11",
+            "XII": "12",
+
+        }
+
+        # ============================================================
+        # GET ALL CLASSES ONCE
+        # ============================================================
+
+        class_rows = (
+            db.query(ClassSection)
+            .all()
+        )
+
+        class_map = {
+            str(row.name)
+            .strip()
+            .upper(): row.id
+            for row in class_rows
+        }
+
+        # ============================================================
+        # DUPLICATE TRACKING INSIDE EXCEL
+        # ============================================================
+
+        seen_admissions = set()
+
+        seen_rolls = set()
+
+        # ============================================================
+        # PROCESS EACH EXCEL ROW
+        # ============================================================
+
+        for index, row in df.iterrows():
+
+            excel_row = index + 2
+
+            # --------------------------------------------------------
+            # GET VALUES
+            # --------------------------------------------------------
+
+            emis_value = row["EMIS Id"]
+            name_value = row["Name"]
+            class_value = row["Class"]
+            section_value = row["Section"]
+            roll_value = row["Rool_no"]
+
+            # --------------------------------------------------------
+            # CONVERT EXCEL VALUES SAFELY
+            # --------------------------------------------------------
+
+            if pd.isna(emis_value):
+                admission_no = ""
+            elif isinstance(emis_value, float) and emis_value.is_integer():
+                admission_no = str(int(emis_value))
+            else:
+                admission_no = str(emis_value).strip()
+
+            if pd.isna(name_value):
+                student_name = ""
+            else:
+                student_name = str(name_value).strip()
+
+            if pd.isna(class_value):
+                class_text = ""
+            else:
+                class_text = str(class_value).strip().upper()
+
+            if pd.isna(section_value):
+                section_text = ""
+            else:
+                section_text = str(section_value).strip().upper()
+
+            if pd.isna(roll_value):
+                roll_no = ""
+            elif isinstance(roll_value, float) and roll_value.is_integer():
+                roll_no = str(int(roll_value))
+            else:
+                roll_no = str(roll_value).strip()
+
+            # --------------------------------------------------------
+            # REQUIRED FIELD CHECK
+            # --------------------------------------------------------
+
+            if not admission_no:
+
+                error_count += 1
+
+                messages.append(
+                    f"Row {excel_row}: ❌ EMIS Id is empty."
+                )
+
+                continue
+
+            if not student_name:
+
+                error_count += 1
+
+                messages.append(
+                    f"Row {excel_row}: ❌ Name is empty."
+                )
+
+                continue
+
+            if not class_text:
+
+                error_count += 1
+
+                messages.append(
+                    f"Row {excel_row}: ❌ Class is empty."
+                )
+
+                continue
+
+            if not section_text:
+
+                error_count += 1
+
+                messages.append(
+                    f"Row {excel_row}: ❌ Section is empty."
+                )
+
+                continue
+
+            if not roll_no:
+
+                error_count += 1
+
+                messages.append(
+                    f"Row {excel_row}: ❌ Rool_no is empty."
+                )
+
+                continue
+
+            # --------------------------------------------------------
+            # DUPLICATE ADMISSION IN SAME EXCEL
+            # --------------------------------------------------------
+
+            if admission_no in seen_admissions:
+
+                duplicate_count += 1
+
+                messages.append(
+                    f"Row {excel_row}: ⚠️ Duplicate EMIS Id "
+                    f"{admission_no} in Excel."
+                )
+
+                continue
+
+            # --------------------------------------------------------
+            # ROMAN CLASS → NUMBER
+            # --------------------------------------------------------
+
+            if class_text in roman_classes:
+
+                numeric_class = roman_classes[
+                    class_text
+                ]
+
+            else:
+
+                numeric_class = class_text
+
+            # --------------------------------------------------------
+            # CREATE CLASS NAME
+            # Example: XI + A1 = 11-A1
+            # --------------------------------------------------------
+
+            class_name = (
+                f"{numeric_class}-{section_text}"
+            )
+
+            class_key = class_name.upper()
+
+            # --------------------------------------------------------
+            # FIND CLASS SECTION
+            # --------------------------------------------------------
+
+            class_id = class_map.get(
+                class_key
+            )
+
+            if not class_id:
+
+                error_count += 1
+
+                messages.append(
+                    f"Row {excel_row}: ❌ Class "
+                    f"'{class_name}' not found."
+                )
+
+                continue
+
+            # --------------------------------------------------------
+            # EXISTING ADMISSION NUMBER
+            # --------------------------------------------------------
+
+            existing = (
+                db.query(Student)
+                .filter(
+                    Student.admission_no
+                    == admission_no
+                )
+                .first()
+            )
+
+            if existing:
+
+                seen_admissions.add(
+                    admission_no
+                )
+
+                # ----------------------------------------------------
+                # ACTIVE STUDENT
+                # ----------------------------------------------------
+
+                if existing.active:
+
+                    duplicate_count += 1
+
+                    messages.append(
+                        f"Row {excel_row}: ⚠️ EMIS Id "
+                        f"{admission_no} already exists."
+                    )
+
+                    continue
+
+                # ----------------------------------------------------
+                # INACTIVE STUDENT → RESTORE
+                # ----------------------------------------------------
+
+                roll_key = (
+                    class_id,
+                    roll_no
+                )
+
+                if roll_key in seen_rolls:
+
+                    duplicate_count += 1
+
+                    messages.append(
+                        f"Row {excel_row}: ⚠️ Roll No "
+                        f"{roll_no} already used in "
+                        f"{class_name} in Excel."
+                    )
+
+                    continue
+
+                roll_existing = (
+                    db.query(Student)
+                    .filter(
+                        Student.roll_no
+                        == roll_no,
+                        Student.class_id
+                        == class_id,
+                        Student.active == True,
+                        Student.id
+                        != existing.id,
+                    )
+                    .first()
+                )
+
+                if roll_existing:
+
+                    duplicate_count += 1
+
+                    messages.append(
+                        f"Row {excel_row}: ⚠️ Roll No "
+                        f"{roll_no} already exists in "
+                        f"{class_name}."
+                    )
+
+                    continue
+
+                existing.active = True
+                existing.roll_no = roll_no
+                existing.name = student_name
+                existing.class_id = class_id
+
+                seen_rolls.add(
+                    roll_key
+                )
+
+                restored_count += 1
+
+                messages.append(
+                    f"Row {excel_row}: ♻️ Restored "
+                    f"{student_name}"
+                )
+
+                continue
+
+            # --------------------------------------------------------
+            # CHECK ROLL NO DUPLICATE IN EXCEL
+            # Same Class + Section only
+            # --------------------------------------------------------
+
+            roll_key = (
+                class_id,
+                roll_no
+            )
+
+            if roll_key in seen_rolls:
+
+                duplicate_count += 1
+
+                messages.append(
+                    f"Row {excel_row}: ⚠️ Roll No "
+                    f"{roll_no} already repeated in "
+                    f"{class_name}."
+                )
+
+                continue
+
+            # --------------------------------------------------------
+            # CHECK ROLL NO IN DATABASE
+            # Same Class + Section only
+            # --------------------------------------------------------
+
+            roll_existing = (
+                db.query(Student)
+                .filter(
+                    Student.roll_no
+                    == roll_no,
+                    Student.class_id
+                    == class_id,
+                    Student.active == True,
+                )
+                .first()
+            )
+
+            if roll_existing:
+
+                duplicate_count += 1
+
+                messages.append(
+                    f"Row {excel_row}: ⚠️ Roll No "
+                    f"{roll_no} already exists in "
+                    f"{class_name}."
+                )
+
+                continue
+
+            # --------------------------------------------------------
+            # ADD NEW STUDENT
+            # --------------------------------------------------------
+
+            student = Student(
+
+                admission_no=admission_no,
+
+                roll_no=roll_no,
+
+                name=student_name,
+
+                class_id=class_id,
+
+                active=True,
+
+            )
+
+            db.add(student)
+
+            seen_admissions.add(
+                admission_no
+            )
+
+            seen_rolls.add(
+                roll_key
+            )
+
+            added_count += 1
+
+            messages.append(
+                f"Row {excel_row}: ✅ Added "
+                f"{student_name} "
+                f"(Roll {roll_no})"
+            )
+
+        # ============================================================
+        # SAVE ALL CHANGES
+        # ============================================================
+
+        db.commit()
+
+        # ============================================================
+        # RESULT MESSAGE
+        # ============================================================
+
+        result = (
+            "✅ BULK IMPORT COMPLETED\n\n"
+            f"👨‍🎓 Added      : {added_count}\n"
+            f"♻️ Restored   : {restored_count}\n"
+            f"⚠️ Duplicate  : {duplicate_count}\n"
+            f"❌ Errors     : {error_count}\n"
+            f"📄 Total Rows : {len(df)}\n"
+        )
+
+        if messages:
+
+            result += (
+                "\n------------------------------\n"
+                "DETAILS\n"
+                "------------------------------\n"
+            )
+
+            result += "\n".join(
+                messages
+            )
+
+        return (
+            result,
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
+        )
+
+    except Exception as e:
+
+        db.rollback()
+
+        return (
+            "❌ Bulk import failed:\n\n"
+            + str(e),
+            get_student_list(),
+            gr.Dropdown(
+                choices=get_student_delete_choices(),
+                value=None,
+            ),
+        )
 
     finally:
 
@@ -6038,7 +6997,37 @@ Teacher accounts can use **Mark Entry, View Marks and Consolidated Report**, but
                     interactive=False,
 
                 )
+gr.Markdown(
+    "### 📥 Bulk Student Import"
+)
 
+bulk_student_file = gr.File(
+    label="Upload Student Excel File",
+    file_types=[".xlsx"],
+    type="filepath",
+)
+
+bulk_import_button = gr.Button(
+    "🚀 Import All Students"
+)
+
+bulk_import_message = gr.Textbox(
+    label="Bulk Import Result",
+    lines=12,
+    interactive=False,
+)
+
+bulk_import_button.click(
+    bulk_import_students,
+    inputs=[
+        bulk_student_file
+    ],
+    outputs=[
+        bulk_import_message,
+        student_table,
+        delete_student_select,
+    ],
+)
 
             # ==================================================
             # MARK ENTRY - MOBILE FRIENDLY
@@ -6556,7 +7545,40 @@ use **Ctrl + P** in your browser to print.
 
     )
 
+gr.Markdown(
+    "### 📥 Bulk Student Import"
+)
 
+bulk_student_file = gr.File(
+    label="Upload Student Excel File",
+    file_types=[".xlsx"],
+    type="filepath",
+)
+
+bulk_import_button = gr.Button(
+    "🚀 Import All Students"
+)
+
+bulk_import_message = gr.Textbox(
+    label="Bulk Import Result",
+    lines=8,
+    interactive=False,
+)
+
+bulk_import_button.click(
+
+    bulk_import_students,
+
+    inputs=[
+        bulk_student_file,
+    ],
+
+    outputs=[
+        bulk_import_message,
+        student_table,
+    ],
+
+)
     # ======================================================
     # STUDENT EVENTS
     # ======================================================

@@ -7062,8 +7062,8 @@ Teacher accounts can use **Mark Entry, View Marks and Consolidated Report**, but
             # MARK ENTRY - MOBILE FRIENDLY
             # ==================================================
 
-              with gr.Tab(
-                 "📝 Mark Entry",
+            with gr.Tab(
+                "📝 Mark Entry",
                   visible=False,
                ) as mark_entry_tab:
 

@@ -7033,7 +7033,7 @@ bulk_import_button.click(
             # MARK ENTRY - MOBILE FRIENDLY
             # ==================================================
 
-            with gr.Tab(
+           with gr.Tab(
                  "📝 Mark Entry",
                 visible=False,
             ) as mark_entry_tab:

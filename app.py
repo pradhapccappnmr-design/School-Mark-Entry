@@ -6997,38 +6997,67 @@ Teacher accounts can use **Mark Entry, View Marks and Consolidated Report**, but
                     interactive=False,
 
                 )
-gr.Markdown(
-    "### 📥 Bulk Student Import"
-)
+                            # ==================================================
+                # BULK STUDENT IMPORT
+                # ==================================================
 
-bulk_student_file = gr.File(
-    label="Upload Student Excel File",
-    file_types=[".xlsx"],
-    type="filepath",
-)
+                gr.Markdown(
+                    "### 📥 Bulk Student Import"
+                )
 
-bulk_import_button = gr.Button(
-    "🚀 Import All Students"
-)
 
-bulk_import_message = gr.Textbox(
-    label="Bulk Import Result",
-    lines=12,
-    interactive=False,
-)
+                bulk_student_file = gr.File(
 
-bulk_import_button.click(
-    bulk_import_students,
-    inputs=[
-        bulk_student_file
-    ],
-    outputs=[
-        bulk_import_message,
-        student_table,
-        delete_student_select,
-    ],
-)
+                    label="Upload Student Excel File",
 
+                    file_types=[".xlsx"],
+
+                    type="filepath",
+
+                )
+
+
+                bulk_import_button = gr.Button(
+
+                    "🚀 Import All Students",
+
+                    variant="primary",
+
+                )
+
+
+                bulk_import_message = gr.Textbox(
+
+                    label="Bulk Import Result",
+
+                    lines=12,
+
+                    interactive=False,
+
+                )
+
+
+                bulk_import_button.click(
+
+                    bulk_import_students,
+
+                    inputs=[
+
+                        bulk_student_file,
+
+                    ],
+
+                    outputs=[
+
+                        bulk_import_message,
+
+                        student_table,
+
+                        delete_student_select,
+
+                    ],
+
+                )
             # ==================================================
             # MARK ENTRY - MOBILE FRIENDLY
             # ==================================================

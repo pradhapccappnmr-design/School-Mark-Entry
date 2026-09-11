@@ -7544,6 +7544,9 @@ use **Ctrl + P** in your browser to print.
         ],
 
     )
+    # ======================================================
+# BULK STUDENT IMPORT
+# ======================================================
 
 gr.Markdown(
     "### 📥 Bulk Student Import"
@@ -7556,29 +7559,28 @@ bulk_student_file = gr.File(
 )
 
 bulk_import_button = gr.Button(
-    "🚀 Import All Students"
+    "🚀 Import All Students",
+    variant="primary",
 )
 
 bulk_import_message = gr.Textbox(
     label="Bulk Import Result",
-    lines=8,
+    lines=12,
     interactive=False,
 )
 
 bulk_import_button.click(
-
     bulk_import_students,
-
     inputs=[
         bulk_student_file,
     ],
-
     outputs=[
         bulk_import_message,
         student_table,
+        delete_student_select,
     ],
-
 )
+
     # ======================================================
     # STUDENT EVENTS
     # ======================================================

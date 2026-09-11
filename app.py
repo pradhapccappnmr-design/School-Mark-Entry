@@ -1713,7 +1713,7 @@ def add_student(
     finally:
 
         db.close()
-        def bulk_import_students(file):
+def bulk_import_students(file):
 
     if file is None:
         return (

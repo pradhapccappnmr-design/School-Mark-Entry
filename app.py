@@ -7033,10 +7033,10 @@ bulk_import_button.click(
             # MARK ENTRY - MOBILE FRIENDLY
             # ==================================================
 
-           with gr.Tab(
+              with gr.Tab(
                  "📝 Mark Entry",
-                visible=False,
-            ) as mark_entry_tab:
+                  visible=False,
+               ) as mark_entry_tab:
 
                 gr.Markdown(
                     "## 📝 Mark Entry"
@@ -7544,43 +7544,7 @@ use **Ctrl + P** in your browser to print.
         ],
 
     )
-    # ======================================================
-# BULK STUDENT IMPORT
-# ======================================================
-
-gr.Markdown(
-    "### 📥 Bulk Student Import"
-)
-
-bulk_student_file = gr.File(
-    label="Upload Student Excel File",
-    file_types=[".xlsx"],
-    type="filepath",
-)
-
-bulk_import_button = gr.Button(
-    "🚀 Import All Students",
-    variant="primary",
-)
-
-bulk_import_message = gr.Textbox(
-    label="Bulk Import Result",
-    lines=12,
-    interactive=False,
-)
-
-bulk_import_button.click(
-    bulk_import_students,
-    inputs=[
-        bulk_student_file,
-    ],
-    outputs=[
-        bulk_import_message,
-        student_table,
-        delete_student_select,
-    ],
-)
-
+    
     # ======================================================
     # STUDENT EVENTS
     # ======================================================

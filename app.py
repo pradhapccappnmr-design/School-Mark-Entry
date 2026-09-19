@@ -16,6 +16,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     UniqueConstraint,
+    text,
 )
 
 from sqlalchemy.orm import (
@@ -374,6 +375,14 @@ class Mark(Base):
 Base.metadata.create_all(
     engine
 )
+with engine.begin() as conn:
+
+    conn.execute(
+        text("""
+            ALTER TABLE subjects
+            ADD COLUMN IF NOT EXISTS display_order INTEGER
+        """)
+    )
 
 
 # ==========================================================

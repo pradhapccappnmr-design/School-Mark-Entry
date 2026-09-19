@@ -205,6 +205,11 @@ class Subject(Base):
         unique=True,
         nullable=False,
     )
+    
+    display_order = Column(
+        Integer,
+        nullable=True,
+    )
 
     theory = Column(
         Boolean,
@@ -215,7 +220,7 @@ class Subject(Base):
         Boolean,
         default=False,
     )
-
+    
     internal = Column(
         Boolean,
         default=True,

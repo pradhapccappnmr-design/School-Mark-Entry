@@ -893,7 +893,8 @@ def get_subject_choices():
                 Subject.active == True
             )
             .order_by(
-                Subject.name
+                 Subject.display_order,
+                Subject.id
             )
             .all()
         )
@@ -941,7 +942,8 @@ def get_subjects_for_class(
                 Subject.active == True,
             )
             .order_by(
-                Subject.name
+                    Subject.display_order,
+                    Subject.id
             )
             .all()
         )
